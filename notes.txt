@@ -1,0 +1,81 @@
+Overall TODO List:
+- Refactoring: 
+  + Add DATA_PATH, CHART_PATH, and the init function that creates them to the utils.py script
+  + Save figures in the functions that generate graphs
+  + Remove all them prints from the run DL script, you know it's working now
+  + Move the short_names list to the get_levels script
+  + Remove Stupid Rat runs
+  + Remove Rejected Runs
+  - Parameterize the download scripts so they can pull from the CE board
+  + Maybe rework the entire query_api path? idk, the API is a bit weird regardless
+  - Update the leaderboard download/enrichment
+    - this will likely require updating how we write files
+- Get the CE API/category names/etc, maybe move all the labeling stuff into its own config file (or utils, lol)
+- Decide how to save files from different games (CE/main)
+  - Probably keep all PT in the same file
+  - Maybe make the dl functions take a list of identifiers and then concat them together?
+- Create a col that marks the "era" of a category (ie. original, Halloween, category extensions)
+  - this likely belongs in the category file
+- Make a Top 5 ILs graph for each category
+- Make a Cumulative Runs By Day graph
+- Rework the colors to be a bit more pizza-towery
+- Add Peppino screaming to the all levels graph, for JG
+
+2023-10-31:
+- If i was to split it out even more would it be one script for scraping and another 
+  for cleaning the data? is that worth doing?
+  - I think for now, meh, but worth keeping in mind
+- It may make sense to make a local vs remote read function for loading in these datasets
+  so I'm not pulling the entire run history every time i want to load runs into jupyter
+- Then of course we have the question of generic loads/api read functions to avoid repeating meself
+- So the thing about generifying the data load functions is that the ordering is a bit weird:
+  - If local is true, just load the existing file, no changes
+  - If not, query the API, format the results
+  - perform custom enhancement per dataset
+  - I want to generify both the local load and the non-local pull but enhancement only happens
+    when non-local is called
+  - I guess I could pass local to both bits?
+  - Of course local vs api reads have totally different parameters, but i could store those
+    in a structure
+- I think I got it: a generic function for local/api/formatting calls, and functions
+  for cleaning up each dataset and turning it into a dataframe
+- Whew, got it!
+
+2023-10-29 Suggestion Graphs:
+- Top ILs per category (top 5?)
+- Cumulative Total Runs
+
+2023-10-28 TODO List:
+- Figure out how to save the graphs I make
+- Start pulling from the category extensions board
+- Mark SotW and Pumpkin runs as part of the halloween update
+- Mark category extensions as, well, category extensions
+- Build and post the per-week, per-level, and minute-barrier graphs to the mod channel
+- Investigate putting a break in the per-level board so JG doesn't take over everything
+
+
+So what stats do I actually want to surface with my data? (IL vs Full game separately)
+- Runs per day (graphed)
+  - Need to group by day, count IL = true vs false
+  - Maybe runs per week to look less crowded?
+- Runners per month
+- New runners per month
+- Run minute histogram
+- Total time submitted per month
+- Runners who have submitted the most runs?
+- Day of the week that gets the most submissions
+- Record progression by category? Available on src but might be nice
+- Average run time per week per category?
+
+- Most run ILs
+- Least run ILs
+  - just one full ranking, right?
+
+- Verifier stats? Maybe just for me, lol
+
+TODO list:
+- Clean out stupid rat (done!)
+- Remove pending/rejected runs (Marked!)
+- Make a per-week runs chart
+- Make a runners per month chart
+

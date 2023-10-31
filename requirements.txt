@@ -1,0 +1,7 @@
+requests
+pandas
+ipython
+pyarrow
+matplotlib
+jupyterlab
+jupyter
