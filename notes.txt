@@ -16,8 +16,9 @@ Overall TODO List:
 + Decide how to save files from different games (CE/main)
   + Probably keep all PT in the same file
   + Maybe make the dl functions take a list of identifiers and then concat them together?
-  - Hmm, actually, I think I'd rather join them at graphing time, esp given the size disparities
+  + Hmm, actually, I think I'd rather join them at graphing time, esp given the size disparities
     and the fact that to join PT/PT CE categories I'd need to download the whole main board twice, lol
+- Parameterize and append different datasets together in join_all_data
 - Create a col that marks the "era" of a category (ie. original, Halloween, category extensions)
   - this likely belongs in the category/level files
 - Make a Top 5 ILs graph for each category

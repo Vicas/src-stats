@@ -26,7 +26,7 @@ class SpeedrunBoard:
     short_name: str
     id: str
 
-
+"""List of boards I pull from, with a file prefix and SRC ID"""
 boards = {
     "PT": SpeedrunBoard(
         short_name="PT",

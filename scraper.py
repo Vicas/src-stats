@@ -21,7 +21,7 @@ REMOVE_NAMES = ['Stupid Rat']
 """Loading different datasets"""
 
 def get_levels(board_ids, local_load=True):
-    """Get a list of all levels for pizza tower"""
+    """Get a list of all levels for the boards in board_ids (see boards in config.py)"""
     return {
         board: load_data(
             datasets["levels"],
@@ -34,7 +34,7 @@ def get_levels(board_ids, local_load=True):
 
 
 def get_categories(board_ids, local_load=True):
-    """Get a list of all categories for pizza tower"""
+    """Get a list of all categories for the boards in board_ids (see boards in config.py)"""
     return {
         board: load_data(
             datasets["categories"],
@@ -48,7 +48,7 @@ def get_categories(board_ids, local_load=True):
 
 
 def get_all_runs(board_ids, local_load=True):
-    """Query the speedrun.com API to get every single pizza tower run."""
+    """Query the speedrun.com API to get every run in all boards in board_ids"""
     return {
         board: load_data(
             datasets["runs"],
