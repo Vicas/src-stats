@@ -15,6 +15,7 @@ plt.tight_layout()
 
 def join_all_data(refresh=False):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever"""
+    global RUN_JOIN_CACHE
     if not (refresh or RUN_JOIN_CACHE is None):
         return RUN_JOIN_CACHE
 

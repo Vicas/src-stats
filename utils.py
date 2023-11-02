@@ -42,6 +42,11 @@ SHORT_NAME_MAP = {
     "Pizzaface": "Pizzaface",
     "Secrets of the World": "Secrets of the World",
     "Tricky Treat": "Tricky Treat",
+    "Pizzascape": "Pizzascape (SAGE)",
+    "The Ancient Cheese": "The Ancient Cheese (SAGE)",
+    "Bloodsauce Dungeon": "Bloodsauce Dungeon (SAGE)",
+    "Pizzascare": "Pizzascare (SAGE)",
+    "Strongcold": "Strongcold (SAGE)",
 }
 
 def init_folders():
@@ -76,6 +81,7 @@ def get_user_name(pid):
             break
 
     api_return = api_return["data"]["names"]
+    print(f"Fetched new user {api_return['international']}")
     USER_PICKLE[pid] = api_return
     with open(USER_PICKLE_PATH, "wb") as pickle_file:
         pickle.dump(USER_PICKLE, pickle_file)

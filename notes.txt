@@ -6,22 +6,30 @@ Overall TODO List:
   + Move the short_names list to the get_levels script
   + Remove Stupid Rat runs
   + Remove Rejected Runs
-  - Parameterize the download scripts so they can pull from the CE board
+  + Parameterize the download scripts so they can pull from the CE board
   + Maybe rework the entire query_api path? idk, the API is a bit weird regardless
   - Update the leaderboard download/enrichment
     - this will likely require updating how we write files
-- Make a CSV export function for the joined data
++ Make a CSV export function for the joined data
 - Create (recreate?) the top 5 submitters code
-- Get the CE API/category names/etc, maybe move all the labeling stuff into its own config file (or utils, lol)
-- Decide how to save files from different games (CE/main)
-  - Probably keep all PT in the same file
-  - Maybe make the dl functions take a list of identifiers and then concat them together?
++ Get the CE API/category names/etc, maybe move all the labeling stuff into its own config file (or utils, lol)
++ Decide how to save files from different games (CE/main)
+  + Probably keep all PT in the same file
+  + Maybe make the dl functions take a list of identifiers and then concat them together?
+  - Hmm, actually, I think I'd rather join them at graphing time, esp given the size disparities
+    and the fact that to join PT/PT CE categories I'd need to download the whole main board twice, lol
 - Create a col that marks the "era" of a category (ie. original, Halloween, category extensions)
-  - this likely belongs in the category file
+  - this likely belongs in the category/level files
 - Make a Top 5 ILs graph for each category
 - Make a Cumulative Runs By Day graph
 - Rework the colors to be a bit more pizza-towery
 - Add Peppino screaming to the all levels graph, for JG
+
+2023-11-02:
+- Made a CSV export for XBC, and now I can export whatever I want with the export_joined_runs_csv 
+  function
+- Spent mayyyybe a bit too much time on the username cache but hopefully now it'll mean I just
+  get names for free
 
 2023-10-31:
 - If i was to split it out even more would it be one script for scraping and another 

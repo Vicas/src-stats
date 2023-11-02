@@ -6,7 +6,7 @@ import requests
 import sys
 import time
 
-from config import datasets, DATA_PATH, SRC_API_URL, PT_ID
+from config import boards, datasets, DATA_PATH, SRC_API_URL, PT_ID
 from utils import map_short_name, get_user_name
 
 
@@ -20,20 +20,44 @@ REMOVE_NAMES = ['Stupid Rat']
 
 """Loading different datasets"""
 
-def get_levels(local_load=True):
+def get_levels(board_ids, local_load=True):
     """Get a list of all levels for pizza tower"""
-    return load_data(datasets["levels"], enrich_levels, local_load=local_load)
+    return {
+        board: load_data(
+            datasets["levels"],
+            enrich_levels,
+            board=board,
+            local_load=local_load)
+        for board
+        in board_ids
+    }
 
 
-def get_categories(local_load=True):
+def get_categories(board_ids, local_load=True):
     """Get a list of all categories for pizza tower"""
-    return load_data(datasets["categories"], enrich_categories, local_load=local_load)
+    return {
+        board: load_data(
+            datasets["categories"],
+            enrich_categories,
+            board=board,
+            local_load=local_load)
+        for board
+        in board_ids
+    }
 
 
-def get_all_runs(local_load=True):
+
+def get_all_runs(board_ids, local_load=True):
     """Query the speedrun.com API to get every single pizza tower run."""
-    print(f"local_load: {local_load}")
-    return load_data(datasets["runs"], enrich_runs, local_load=local_load)
+    return {
+        board: load_data(
+            datasets["runs"],
+            enrich_runs,
+            board=board,
+            local_load=local_load)
+        for board
+        in board_ids
+    }
 
 
 def get_leaderboards():
@@ -126,32 +150,29 @@ def enrich_runs(api_return):
 
 """Data Loading Functions, separate from enrichment"""
 
-def load_data(dataset, enrich_data_fun, game_id=PT_ID, local_load=True, save_results=True):
+def load_data(dataset, enrich_data_fun, board="PT", local_load=True, save_results=True):
     """Handle the loading of data, local or via API. If the data is loaded via the API,
     clean it up with the enrich_data function"""
-    print(f"dataset: {dataset}")
-    print(f"enrich_data_fun: {enrich_data_fun}")
-    print(f"game_id: {game_id}")
-    print(f"local_load: {local_load}")
-    print(f"save_results: {save_results}")
     if local_load:
-        print("We shouldn't be here")
-        return load_local_data(dataset)
+        return load_local_data(board, dataset)
     
+    # Grab the dataset for each board_id provided
+    game_id = boards[board].id
     arg_str = build_arg_str(dataset.api_args_dict) if dataset.api_args_dict else ""
     api_return = query_api(dataset.api_endpoint, game_id, arg_str)
+
     data_df = enrich_data_fun(api_return)
 
     # Cache the results on local disk
     if save_results:
-        data_df.to_parquet(path=DATA_PATH / f"{dataset.local_path}.parquet")
+        data_df.to_parquet(path=DATA_PATH / f"{board}_{dataset.local_path}.parquet")
 
     return data_df
 
 
-def load_local_data(dataset):
+def load_local_data(board_prefix, dataset):
     """Read data locally instead of pulling it down"""
-    return pd.read_parquet(DATA_PATH / f"{dataset.local_path}.parquet")
+    return pd.read_parquet(DATA_PATH / f"{board_prefix}_{dataset.local_path}.parquet")
 
 
 # Pagination gives you ~20 results, so you gotta call the API again using
@@ -162,9 +183,11 @@ def query_api(endpoint, game_id="", arg_str=""):
     
     game_id is parameterized so that different games can be pulled with the same config"""
 
+    print("")
     formatted_endpoint = endpoint.format(game_id=game_id)
+    formatted_arg_str = arg_str.format(game_id=game_id)
 
-    results = requests.get(f"{SRC_API_URL}/{formatted_endpoint}?{arg_str}")
+    results = requests.get(f"{SRC_API_URL}/{formatted_endpoint}?{formatted_arg_str}")
     results_list = []
     call_count = 1
     result_count = 0
