@@ -10,8 +10,9 @@ CHART_PATH = Path(__file__).parent / "charts"
 
 SRC_API_URL = "https://www.speedrun.com/api/v1"
 
-# Pizza Tower ID on speedrun.com
+# Pizza Tower & CE IDs on speedrun.com
 PT_ID = "o6gnpox1"
+PT_CE_ID = "pdv99xv1"
 
 @dataclass
 class LoadConfig:
@@ -23,11 +24,11 @@ class LoadConfig:
 datasets = {
     "levels": LoadConfig(
         local_path="PT_levels",
-        api_endpoint=f"games/{PT_ID}/levels",
+        api_endpoint="games/{game_id}/levels",
     ),
     "categories": LoadConfig(
         local_path="PT_categories",
-        api_endpoint=f"games/{PT_ID}/categories",
+        api_endpoint="games/{game_id}/categories",
     ),
     "runs": LoadConfig(
         local_path="PT_runs",

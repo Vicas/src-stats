@@ -6,13 +6,18 @@ import pandas as pd
 
 from utils import DATA_PATH, CHART_PATH, get_user_name
 
+# So we don't need to rejoin the data every time we run a graph, we cache it
+RUN_JOIN_CACHE = None
 
 plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data():
+def join_all_data(refresh=False):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever"""
+    if not (refresh or RUN_JOIN_CACHE is None):
+        return RUN_JOIN_CACHE
+
     runs = pd.read_parquet(DATA_PATH / "PT_runs.parquet")
     levels = pd.read_parquet(DATA_PATH / "PT_levels.parquet")
     categories = pd.read_parquet(DATA_PATH / "PT_categories.parquet")
@@ -25,6 +30,8 @@ def join_all_data():
 
     runs_level = runs_level.loc[runs_level['is_rat'] == False]
     runs_level = runs_level.loc[runs_level['status_judgment'] != 'rejected']
+
+    RUN_JOIN_CACHE = runs_level
 
     return runs_level
 
@@ -46,6 +53,22 @@ def get_verifier_stats():
     z['verifier_name'] = z.apply(lambda x: get_user_name(x.name), axis=1)
     z = z[['id','verifier_name']].sort_values('id',ascending=False)
     return z
+
+
+# CSV export, for XBC
+
+def export_joined_runs_csv(refresh=False):
+    """Export a CSV with the nested fields removed"""
+    joined_run_list = join_all_data(refresh)
+    scrubbed_run_list = joined_run_list[[
+        'id_runs', 'weblink_runs', 'game', 'level', 'short_name', 'category', 'name_categories',
+        'date', 'submitted', 'primary_t', 'pid', 'is_il', 'status_judgment', 
+        ]]
+    scrubbed_run_list.to_csv(
+        DATA_PATH / f"joined_runs_export_{datetime.utcnow().strftime('%Y-%m-%d')}.csv",
+        sep="|",
+        header=True,
+        date_format="%Y-%m-%d %H:%M:%S")
 
 
 # Actual Graphing Functions

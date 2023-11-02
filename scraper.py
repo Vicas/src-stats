@@ -22,17 +22,18 @@ REMOVE_NAMES = ['Stupid Rat']
 
 def get_levels(local_load=True):
     """Get a list of all levels for pizza tower"""
-    return load_data(datasets["levels"], enrich_levels, local_load)
+    return load_data(datasets["levels"], enrich_levels, local_load=local_load)
 
 
 def get_categories(local_load=True):
     """Get a list of all categories for pizza tower"""
-    return load_data(datasets["categories"], enrich_categories, local_load)
+    return load_data(datasets["categories"], enrich_categories, local_load=local_load)
 
 
 def get_all_runs(local_load=True):
     """Query the speedrun.com API to get every single pizza tower run."""
-    return load_data(datasets["runs"], enrich_runs, local_load)
+    print(f"local_load: {local_load}")
+    return load_data(datasets["runs"], enrich_runs, local_load=local_load)
 
 
 def get_leaderboards():
@@ -120,14 +121,20 @@ def enrich_runs(api_return):
 
 """Data Loading Functions, separate from enrichment"""
 
-def load_data(dataset, enrich_data_fun, local=True, save_results=True):
+def load_data(dataset, enrich_data_fun, game_id=PT_ID, local_load=True, save_results=True):
     """Handle the loading of data, local or via API. If the data is loaded via the API,
     clean it up with the enrich_data function"""
-    if local:
+    print(f"dataset: {dataset}")
+    print(f"enrich_data_fun: {enrich_data_fun}")
+    print(f"game_id: {game_id}")
+    print(f"local_load: {local_load}")
+    print(f"save_results: {save_results}")
+    if local_load:
+        print("We shouldn't be here")
         return load_local_data(dataset)
     
     arg_str = build_arg_str(dataset.api_args_dict) if dataset.api_args_dict else ""
-    api_return = query_api(dataset.api_endpoint, arg_str)
+    api_return = query_api(dataset.api_endpoint, game_id, arg_str)
     data_df = enrich_data_fun(api_return)
 
     # Cache the results on local disk
@@ -145,12 +152,14 @@ def load_local_data(dataset):
 # Pagination gives you ~20 results, so you gotta call the API again using
 # the return value's pagination.links.uri for rel = 'next'
 # It ends when the pagination list doesn't have a 'next' value anymore
-def query_api(endpoint, arg_str=""):
-    """Query the SRC API and return all unpaginated results for endpoint with args"""
+def query_api(endpoint, game_id="", arg_str=""):
+    """Query the SRC API and return all unpaginated results for endpoint with args.
+    
+    game_id is parameterized so that different games can be pulled with the same config"""
 
-    # print a newline so we can get a line to overwrite statuses on
-    print("")
-    results = requests.get(f"{SRC_API_URL}/{endpoint}?{arg_str}")
+    formatted_endpoint = endpoint.format(game_id=game_id)
+
+    results = requests.get(f"{SRC_API_URL}/{formatted_endpoint}?{arg_str}")
     results_list = []
     call_count = 1
     result_count = 0

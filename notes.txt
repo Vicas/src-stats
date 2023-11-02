@@ -10,6 +10,8 @@ Overall TODO List:
   + Maybe rework the entire query_api path? idk, the API is a bit weird regardless
   - Update the leaderboard download/enrichment
     - this will likely require updating how we write files
+- Make a CSV export function for the joined data
+- Create (recreate?) the top 5 submitters code
 - Get the CE API/category names/etc, maybe move all the labeling stuff into its own config file (or utils, lol)
 - Decide how to save files from different games (CE/main)
   - Probably keep all PT in the same file
