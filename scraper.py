@@ -7,7 +7,7 @@ import sys
 import time
 
 from config import datasets, DATA_PATH, SRC_API_URL, PT_ID
-from utils import map_short_name
+from utils import map_short_name, get_user_name
 
 
 
@@ -115,6 +115,11 @@ def enrich_runs(api_return):
 
     # Extract run status
     run_df['status_judgment'] = run_df['status'].apply(lambda x: x['status'])
+
+    # Get the runner's username
+    run_df['runner_name'] = run_df['player'].apply(
+        lambda x: get_user_name(x['id']) if 'id' in x else "Guest"
+    )
 
     return run_df
 
