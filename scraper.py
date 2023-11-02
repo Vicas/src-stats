@@ -86,6 +86,15 @@ def get_leaderboards():
 
 """Dataset Enrichment functions"""
 
+def mark_level_era(level_name):
+    """For now, if this is tricky treat or Secrets of the world, it's 2023 Halloween,
+    otherwise it's Main Game. I guess we should mark SAGE too"""
+    if level_name in ("Tricky Treat", "Secrets of the World"):
+        return "2023 Halloween"
+    if "(SAGE)" in level_name:
+        return "SAGE Demo"
+    return "Main Game"
+
 def enrich_levels(api_return):
     """Convert the API results to a dataframe and add short_names for display purposes"""
     levels = format_results(api_return)
@@ -93,6 +102,7 @@ def enrich_levels(api_return):
 
     # Add short names for graph display purposes
     lev_df["short_name"] = lev_df['name'].apply(lambda x: map_short_name(x))
+    lev_df["era"] = lev_df['short_name'].apply(lambda x: mark_level_era(x))
 
     return lev_df
 
