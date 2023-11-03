@@ -155,6 +155,7 @@ def plot_top_ils():
     plot_top_il_helper("All Toppins", "C1")
     plot_top_il_helper("100%", "C2")
 
+
 def plot_single_il(category, color):
     """Generate a graph for the given IL category
     

@@ -26,6 +26,7 @@ Overall TODO List:
 - Make a Cumulative Runs By Day graph
 - Rework the colors to be a bit more pizza-towery
 - Add Peppino screaming to the all levels graph, for JG
+- Add impossa's background image
 
 2023-11-02:
 - Made a CSV export for XBC, and now I can export whatever I want with the export_joined_runs_csv 

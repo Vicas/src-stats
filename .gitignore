@@ -4,4 +4,4 @@ charts/
 
 .venv/
 .ipynb_checkpoints/
-Graph Generation.ipynb
+*.ipynb
