@@ -13,8 +13,12 @@ plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data(refresh=False):
-    """Perform a mega-join of all of our data so we can label levels, categories, users, whatever"""
+def join_all_data(filter_users=True, refresh=False):
+    """Perform a mega-join of all of our data so we can label levels, categories, users, whatever
+    
+    filter_users removes Stupid Rat and Rejected runs from the dataset
+    refresh recreates the data instead of re-using RUN_JOIN_CACHE
+    """
     global RUN_JOIN_CACHE
     if not (refresh or RUN_JOIN_CACHE is None):
         return RUN_JOIN_CACHE
@@ -29,8 +33,10 @@ def join_all_data(refresh=False):
     runs_level = pd.merge(runs_level, categories, left_on='category', right_on='id', how='left', suffixes=(None, '_categories'))
     runs_level['Categories'] = runs_level['name_categories']
 
-    runs_level = runs_level.loc[runs_level['is_rat'] == False]
-    runs_level = runs_level.loc[runs_level['status_judgment'] != 'rejected']
+    # Remove Stupid Rat and Rejected runs
+    if filter_users:
+        runs_level = runs_level.loc[runs_level['is_rat'] == False]
+        runs_level = runs_level.loc[runs_level['status_judgment'] != 'rejected']
 
     RUN_JOIN_CACHE = runs_level
 
@@ -129,9 +135,30 @@ def plot_il_graph():
         CHART_PATH / f"runs_per_level_{curr_date}.png", format="png", bbox_inches="tight")
     return x
 
+def plot_top_ils():
+    """Create graphs for the top levels per each IL category"""
+    runs = join_all_data(filter_users=True, refresh=True)
+    il_counts = runs.groupby(["short_name", "Categories"])["id_runs"].count().unstack("Categories").fillna(0)
+    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+
+    def plot_top_il_helper(category, color):
+        """Helper fun for plotting all 3 categories. Order by the category, take the top 10, label the bars, and add a date"""
+        top_runs = il_counts[category].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title=f"Top {category} ILs", color=color)
+        top_runs.bar_label(top_runs.containers[0])
+        top_runs.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+
+        # Save the figure and close it so the next one doesn't stack
+        plt.savefig(CHART_PATH / f"Top_IL_{category}_{curr_date}.png", format="png", bbox_inches="tight")
+        plt.close()
+        
+    plot_top_il_helper("Any%", "C0")
+    plot_top_il_helper("All Toppins", "C1")
+    plot_top_il_helper("100%", "C2")
 
 def plot_single_il(category, color):
-    """Generate a graph for the given IL category"""
+    """Generate a graph for the given IL category
+    
+    Largely deprecated in favor of plot_top_ils"""
     il_run_count = get_il_counts()
     single_graph = il_run_count.sort_values(category, ascending=False)[category].plot.bar(color=color)
 
@@ -140,3 +167,30 @@ def plot_single_il(category, color):
     single_graph.bar_label(single_graph.containers[0])
 
     return single_graph
+
+
+def plot_top_submitters():
+    """Create graphs for both top IL and top fullgame submitters"""
+    runs = join_all_data(filter_users=True, refresh=False)
+
+    # Group runs by runners and count up ILs/Fullgame runs
+    runner_count = runs.groupby(["runner_name", "is_il"])["id_runs"].count().unstack("is_il").fillna(0)
+    runner_count.rename({True: "IL", False: "Full Game"}, axis=1, inplace=True)
+    runner_count.loc[:, ("total_count")] = runner_count["IL"] + runner_count["Full Game"]
+
+    # Graph Fullgame submissions
+    rc = runner_count['Full Game'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top Fullgame Submitters")
+    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+    rc.bar_label(rc.containers[0])
+    rc.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    plt.savefig(
+        CHART_PATH / f"Top_Fullgame_Submitters_{curr_date}.png", format="png", bbox_inches="tight")
+    plt.close()
+
+    # Graph IL submissions
+    rc = runner_count['IL'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top IL Submitters", color='C1')
+    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+    rc.bar_label(rc.containers[0])
+    rc.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    plt.savefig(
+        CHART_PATH / f"Top_IL_Submitters_{curr_date}.png", format="png", bbox_inches="tight")

@@ -11,7 +11,7 @@ Overall TODO List:
   - Update the leaderboard download/enrichment
     - this will likely require updating how we write files
 + Make a CSV export function for the joined data
-- Create (recreate?) the top 5 submitters code
++ Create (recreate?) the top 5 submitters code
 + Get the CE API/category names/etc, maybe move all the labeling stuff into its own config file (or utils, lol)
 + Decide how to save files from different games (CE/main)
   + Probably keep all PT in the same file
@@ -19,6 +19,7 @@ Overall TODO List:
   + Hmm, actually, I think I'd rather join them at graphing time, esp given the size disparities
     and the fact that to join PT/PT CE categories I'd need to download the whole main board twice, lol
 - Parameterize and append different datasets together in join_all_data
+  - I'll probably leave this off until after this event and just do main boards
 + Create a col that marks the "era" of a category (ie. original, Halloween, category extensions)
   + this likely belongs in the category/level files
 - Make a Top 5 ILs graph for each category
