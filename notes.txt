@@ -22,7 +22,11 @@ Overall TODO List:
   - I'll probably leave this off until after this event and just do main boards
 + Create a col that marks the "era" of a category (ie. original, Halloween, category extensions)
   + this likely belongs in the category/level files
-- Make a Top 5 ILs graph for each category
++ Make a Top 5 ILs graph for each category
++ Create a function that returns only WRs
+- Make a Longest-Lasting Records Graph
+  - I've got the list now, but I should think how I want to display it
+  - Maybe another horizontal Bar Graph with active records in a different color
 - Make a Cumulative Runs By Day graph
 - Rework the colors to be a bit more pizza-towery
 - Add Peppino screaming to the all levels graph, for JG

@@ -33,6 +33,9 @@ def join_all_data(filter_users=True, refresh=False):
     runs_level = pd.merge(runs_level, categories, left_on='category', right_on='id', how='left', suffixes=(None, '_categories'))
     runs_level['Categories'] = runs_level['name_categories']
 
+    # Mark runs without a short_name as full game, for convenience
+    runs_level["short_name"] = runs_level["short_name"].fillna("Full Game")
+
     # Remove Stupid Rat and Rejected runs
     if filter_users:
         runs_level = runs_level.loc[runs_level['is_rat'] == False]
@@ -61,6 +64,44 @@ def get_verifier_stats():
     z = z[['id','verifier_name']].sort_values('id',ascending=False)
     return z
 
+
+def get_wr_runs():
+    """Filter the run set to runs that were WR at the time they happened"""
+    runs = join_all_data(filter_users=True, refresh=True)
+    runs.sort_values(["date", "submitted"], inplace=True)
+    runs["wr_t"] = runs.groupby(["Categories", "short_name"])['primary_t'].cummin()
+    runs["was_wr"] = runs.apply(lambda x: x.primary_t == x.wr_t, axis=1)
+
+    return runs[runs["was_wr"]].copy()
+    
+
+def get_longest_standing_wrs(longest_active=False, fullgame_only=False):
+    """Get the longest-standing WRs"""
+    wr_runs = get_wr_runs()
+
+    # Get the date of the next WR after this one
+    wr_runs.loc[:, "next_wr_date"] = wr_runs.groupby(["Categories", "short_name"])['date'].shift(-1)
+
+    # Mark currently-standing WRs, then fill in blank dates for time comparisons
+    wr_runs.loc[:, "is_active"] = wr_runs["next_wr_date"].isna()
+    wr_runs.loc[:, "next_wr_date"] = wr_runs["next_wr_date"].fillna(np.datetime64("today"))
+
+    # Get how long the record stood for, up to today for active ones
+    wr_runs.loc[:, "stood_for"] = (wr_runs['next_wr_date'] - wr_runs['date']).dt.days
+
+    if longest_active:
+        wr_runs = wr_runs[wr_runs['is_active']]
+
+    if fullgame_only:
+        wr_runs = wr_runs[~wr_runs['is_il']]
+
+    # Return the top 20 longest-standing WRs
+    return wr_runs[
+        ['id_runs', 'runner_name',
+         'short_name', 'Categories',
+         'primary_t', 'date', 'next_wr_date',
+         'stood_for', 'is_active']
+        ].sort_values('stood_for', ascending=False).head(20)
 
 # CSV export, for XBC
 
@@ -195,3 +236,26 @@ def plot_top_submitters():
     rc.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
     plt.savefig(
         CHART_PATH / f"Top_IL_Submitters_{curr_date}.png", format="png", bbox_inches="tight")
+
+
+def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", color="C0"):
+    """Given a list of WRs and how long they've stood, plot 'em"""
+    # Create a title col out of the other cols
+    wr_list["Title"] = wr_list.apply(
+        lambda x: "{runner_name}'s {short_name} {Category}\n({date} to {next_wr_date})'"\
+            .format(
+                runner_name=x.runner_name,
+                short_name=x.short_name,
+                Category=x.Categories,
+                date=x.date.strftime("%y-%m-%d"),
+                next_wr_date="Now" if x.is_active else x.next_wr_date.strftime("%y-%m-%d")),
+            axis=1)
+
+    wr_list["Days"] = wr_list["stood_for"]
+
+    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+
+    lwr = wr_list[:10].sort_values("stood_for", ascending=True).plot.barh(x='Title', y='Days', title=title, color=color)
+    lwr.bar_label(lwr.containers[0])
+    lwr.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    plt.savefig(CHART_PATH / f"{title}_{curr_date}.png", format="png", bbox_inches="tight")
