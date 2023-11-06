@@ -24,13 +24,27 @@ Overall TODO List:
   + this likely belongs in the category/level files
 + Make a Top 5 ILs graph for each category
 + Create a function that returns only WRs
-- Make a Longest-Lasting Records Graph
++ Make a Longest-Lasting Records Graph
   - I've got the list now, but I should think how I want to display it
   - Maybe another horizontal Bar Graph with active records in a different color
-- Make a Cumulative Runs By Day graph
+- Add impossa's background image
+  - Make all images transparent and put the background image behind them
 - Rework the colors to be a bit more pizza-towery
 - Add Peppino screaming to the all levels graph, for JG
-- Add impossa's background image
+- Get the background bars to draw before the graph
+  - Currently the function creates a new subplot, if we just reuse the same one in our functions this should work
+  - This might also help me auto-do background images
+- Programmatically create the background bars that differentiate months in the il runs
+
+XBC's TODOs:
++ Add bars to the months in the IL runs graph
+- Remove the "Full Game" tag from the run titles
+- Filter the full run list down to get leaderboards
+- Make the Minute Barriers graph off those filtered lists
+
+New Graph Ideas:
+- Cumulative Runs By Day graph
+- Cumulative Players By Day graph
 
 2023-11-02:
 - Made a CSV export for XBC, and now I can export whatever I want with the export_joined_runs_csv 

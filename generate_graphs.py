@@ -1,6 +1,7 @@
 
 from datetime import datetime
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -39,7 +40,7 @@ def join_all_data(filter_users=True, refresh=False):
     # Remove Stupid Rat and Rejected runs
     if filter_users:
         runs_level = runs_level.loc[runs_level['is_rat'] == False]
-        runs_level = runs_level.loc[runs_level['status_judgment'] != 'rejected']
+        runs_level = runs_level.loc[runs_level['status_judgment'] == 'verified']
 
     RUN_JOIN_CACHE = runs_level
 
@@ -65,9 +66,9 @@ def get_verifier_stats():
     return z
 
 
-def get_wr_runs():
+def get_wr_runs(filter_users=True):
     """Filter the run set to runs that were WR at the time they happened"""
-    runs = join_all_data(filter_users=True, refresh=True)
+    runs = join_all_data(filter_users=filter_users, refresh=True)
     runs.sort_values(["date", "submitted"], inplace=True)
     runs["wr_t"] = runs.groupby(["Categories", "short_name"])['primary_t'].cummin()
     runs["was_wr"] = runs.apply(lambda x: x.primary_t == x.wr_t, axis=1)
@@ -75,9 +76,9 @@ def get_wr_runs():
     return runs[runs["was_wr"]].copy()
     
 
-def get_longest_standing_wrs(longest_active=False, fullgame_only=False):
+def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_users=True):
     """Get the longest-standing WRs"""
-    wr_runs = get_wr_runs()
+    wr_runs = get_wr_runs(filter_users=filter_users)
 
     # Get the date of the next WR after this one
     wr_runs.loc[:, "next_wr_date"] = wr_runs.groupby(["Categories", "short_name"])['date'].shift(-1)
@@ -103,6 +104,16 @@ def get_longest_standing_wrs(longest_active=False, fullgame_only=False):
          'stood_for', 'is_active']
         ].sort_values('stood_for', ascending=False).head(20)
 
+
+def get_leaderboard(category, level, refresh=True):
+    """Pull out current active runs for all users on the board and order it by time
+    to get the current leaderboard"""
+    runs = join_all_data(filter_users=True, refresh=refresh)
+    runs = runs[(runs["Categories"] == category) & (runs["short_name"] == level)].sort_values('date')
+    latest_runs = runs.groupby("pid").tail(1)
+    return latest_runs.sort_values("primary_t")
+
+
 # CSV export, for XBC
 
 def export_joined_runs_csv(refresh=False):
@@ -121,21 +132,25 @@ def export_joined_runs_csv(refresh=False):
 
 # Actual Graphing Functions
 
-def plot_minute_histogram(run_filepath, category_name, minute_cutoff=1000, color='C0'):
+def plot_minute_histogram(leaderboard, category_name, minute_cutoff=1000, color='C0', fill_minutes=False):
     """Plot the number of runs on the leaderboard on per-minute buckets, with a cutoff for runs slower than minute_cutoff"""
-    runs = pd.read_parquet(run_filepath)
 
     # Sort the runs into minute buckets
-    runs['minute_time'] = np.floor(runs['primary_t'] / 60)
+    leaderboard['minute_time'] = np.floor(leaderboard['primary_t'] / 60)
 
     # Cutoff runs
-    run_cutoff = runs[runs['minute_time'] <= minute_cutoff]
+    lb_cutoff = leaderboard[leaderboard['minute_time'] <= minute_cutoff]
 
-    run_minutes = run_cutoff.groupby(['minute_time']).count()
+    lb_minutes = lb_cutoff.groupby(['minute_time']).count()
+
+    if fill_minutes:
+        # Fill in missing minutes with 0
+        lb_times = range(int(lb_minutes.index.min()), int(lb_minutes.index.max()+1))
+        lb_minutes = lb_minutes.reindex(index=lb_times, fill_value=0)
 
     # Build da graph
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
-    rp = run_minutes['id'].plot.bar(title=f"{category_name} Minute Barriers", color=color)
+    rp = lb_minutes['id'].plot.bar(title=f"{category_name} Minute Barriers", color=color)
     rp.legend(['Players'])
     rp.bar_label(rp.containers[0])
     rp.annotate(f"Generated on {curr_date}", xy=(1.0,-0.2), xycoords="axes fraction", ha="right", va="center", fontsize=8)
@@ -147,15 +162,23 @@ def plot_minute_histogram(run_filepath, category_name, minute_cutoff=1000, color
 def plot_runs_per_week():
     """Plot the number of runs per week, split by fullgame/IL"""
     runs = join_all_data()
-    runs['run_week'] = runs['date'].dt.to_period('W').dt.start_time
-    runs['run_week_str'] = runs['run_week'].apply(lambda x: x.strftime('%Y-%m-%d'))
+    runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
 
-    runs_per_week = runs.groupby(['run_week_str', 'is_il'])['id'].count().unstack('is_il')
+    runs_per_week = runs.groupby(['run_week', 'is_il'])['id'].count().unstack('is_il')
+    runs_per_week["run_week"] = pd.to_datetime(runs_per_week.index)
+    runs_per_week['run_week_str'] = runs_per_week['run_week'].apply(lambda x: x.strftime('%b-%d'))
 
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
-    rp = runs_per_week.plot.bar(stacked=True, title="Runs Per Week")
+    rp = runs_per_week[["run_week_str", False, True]].plot.bar(x="run_week_str", stacked=True, title="Runs Per Week")
     rp.legend(["Full Game","Individual Level"])
-    rp.annotate(f"Generated on {curr_date}", xy=(1.0,-0.35), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+
+    # TODO: Hilarious hack for getting background stripes per month. We can definitely make this read the data
+    plt.axvspan(-0.5, 1.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(5.5, 9.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(13.5, 18.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(22.5, 27.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(31.5, 35.5, facecolor='0.2', alpha=0.2)
+    rp.annotate(f"Generated on {curr_date}", xy=(1.0,-0.2), xycoords="axes fraction", ha="right", va="center", fontsize=8)
     plt.savefig(
         CHART_PATH / f"runs_per_week_{curr_date}.png", format="png", bbox_inches="tight")
     return rp
@@ -191,7 +214,7 @@ def plot_top_ils():
         # Save the figure and close it so the next one doesn't stack
         plt.savefig(CHART_PATH / f"Top_IL_{category}_{curr_date}.png", format="png", bbox_inches="tight")
         plt.close()
-        
+
     plot_top_il_helper("Any%", "C0")
     plot_top_il_helper("All Toppins", "C1")
     plot_top_il_helper("100%", "C2")
@@ -238,7 +261,7 @@ def plot_top_submitters():
         CHART_PATH / f"Top_IL_Submitters_{curr_date}.png", format="png", bbox_inches="tight")
 
 
-def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", color="C0"):
+def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", color="C0", legend=True):
     """Given a list of WRs and how long they've stood, plot 'em"""
     # Create a title col out of the other cols
     wr_list["Title"] = wr_list.apply(
@@ -255,7 +278,7 @@ def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", colo
 
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
 
-    lwr = wr_list[:10].sort_values("stood_for", ascending=True).plot.barh(x='Title', y='Days', title=title, color=color)
+    lwr = wr_list[:10].sort_values("stood_for", ascending=True).plot.barh(x='Title', y='Days', title=title, color=color, legend=legend)
     lwr.bar_label(lwr.containers[0])
     lwr.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
-    plt.savefig(CHART_PATH / f"{title}_{curr_date}.png", format="png", bbox_inches="tight")
+    plt.savefig(CHART_PATH / f"{title}_{curr_date}.png", format="png", bbox_inches="tight", transparent=True)

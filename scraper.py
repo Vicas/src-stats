@@ -226,6 +226,8 @@ def query_api(endpoint, game_id="", arg_str=""):
 
         call_count += 1
 
+    print("")
+
     return results_list
 
 
