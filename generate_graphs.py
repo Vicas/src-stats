@@ -132,8 +132,15 @@ def export_joined_runs_csv(refresh=False):
 
 # Actual Graphing Functions
 
-def plot_minute_histogram(leaderboard, category_name, minute_cutoff=1000, color='C0', fill_minutes=False):
-    """Plot the number of runs on the leaderboard on per-minute buckets, with a cutoff for runs slower than minute_cutoff"""
+def plot_minute_histogram(
+        leaderboard,
+        category_name,
+        minute_cutoff=1000,
+        fill_minutes=False,
+        color='C0',
+        transparent=False):
+    """Plot the number of runs on the leaderboard on per-minute buckets,
+    with a cutoff for runs slower than minute_cutoff"""
 
     # Sort the runs into minute buckets
     leaderboard['minute_time'] = np.floor(leaderboard['primary_t'] / 60)
@@ -155,11 +162,14 @@ def plot_minute_histogram(leaderboard, category_name, minute_cutoff=1000, color=
     rp.bar_label(rp.containers[0])
     rp.annotate(f"Generated on {curr_date}", xy=(1.0,-0.2), xycoords="axes fraction", ha="right", va="center", fontsize=8)
     plt.savefig(
-        CHART_PATH / f"{category_name}_minute_barriers_{curr_date}.png", format="png", bbox_inches="tight")
+        CHART_PATH / f"{category_name}_minute_barriers_{curr_date}.png",
+        format="png",
+        bbox_inches="tight", 
+        transparent=transparent)
     return rp
 
 
-def plot_runs_per_week():
+def plot_runs_per_week(transparent=False):
     """Plot the number of runs per week, split by fullgame/IL"""
     runs = join_all_data()
     runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
@@ -178,13 +188,22 @@ def plot_runs_per_week():
     plt.axvspan(13.5, 18.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(22.5, 27.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(31.5, 35.5, facecolor='0.2', alpha=0.2)
-    rp.annotate(f"Generated on {curr_date}", xy=(1.0,-0.2), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    rp.annotate(
+        f"Generated on {curr_date}",
+        xy=(1.0,-0.2),
+        xycoords="axes fraction",
+        ha="right",
+        va="center",
+        fontsize=8)
     plt.savefig(
-        CHART_PATH / f"runs_per_week_{curr_date}.png", format="png", bbox_inches="tight")
+        CHART_PATH / f"runs_per_week_{curr_date}.png",
+        format="png",
+        bbox_inches="tight",
+        transparent=transparent)
     return rp
 
 
-def plot_il_graph():
+def plot_il_graph(transparent=False):
     """Create a full stacked IL graph, ordered by total number of runs"""
     il_run_count = get_il_counts()
 
@@ -194,12 +213,21 @@ def plot_il_graph():
     # Get plottin'
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
     x = il_run_count.sort_values('total_runs', ascending=False)[['Any%','All Toppins', '100%']].plot.bar(stacked=True, title="Runs Per Level")
-    x.annotate(f"Generated on {curr_date}", xy=(1.0,-0.5), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    x.annotate(
+        f"Generated on {curr_date}",
+        xy=(1.0,-0.5),
+        xycoords="axes fraction",
+        ha="right",
+        va="center",
+        fontsize=8)
     plt.savefig(
-        CHART_PATH / f"runs_per_level_{curr_date}.png", format="png", bbox_inches="tight")
+        CHART_PATH / f"runs_per_level_{curr_date}.png",
+        format="png",
+        bbox_inches="tight",
+        transparent=transparent)
     return x
 
-def plot_top_ils():
+def plot_top_ils(transparent=False):
     """Create graphs for the top levels per each IL category"""
     runs = join_all_data(filter_users=True, refresh=True)
     il_counts = runs.groupby(["short_name", "Categories"])["id_runs"].count().unstack("Categories").fillna(0)
@@ -209,10 +237,19 @@ def plot_top_ils():
         """Helper fun for plotting all 3 categories. Order by the category, take the top 10, label the bars, and add a date"""
         top_runs = il_counts[category].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title=f"Top {category} ILs", color=color)
         top_runs.bar_label(top_runs.containers[0])
-        top_runs.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+        top_runs.annotate(
+            f"Generated on {curr_date}",
+            xy=(1.0,-0.1),
+            xycoords="axes fraction",
+            ha="right",
+            va="center",
+            fontsize=8)
 
         # Save the figure and close it so the next one doesn't stack
-        plt.savefig(CHART_PATH / f"Top_IL_{category}_{curr_date}.png", format="png", bbox_inches="tight")
+        plt.savefig(CHART_PATH / f"Top_IL_{category}_{curr_date}.png",
+                    format="png",
+                    bbox_inches="tight",
+                    transparent=transparent)
         plt.close()
 
     plot_top_il_helper("Any%", "C0")
@@ -234,7 +271,7 @@ def plot_single_il(category, color):
     return single_graph
 
 
-def plot_top_submitters():
+def plot_top_submitters(transparent=False):
     """Create graphs for both top IL and top fullgame submitters"""
     runs = join_all_data(filter_users=True, refresh=False)
 
@@ -247,21 +284,44 @@ def plot_top_submitters():
     rc = runner_count['Full Game'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top Fullgame Submitters")
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
     rc.bar_label(rc.containers[0])
-    rc.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    rc.annotate(
+        f"Generated on {curr_date}",
+        xy=(1.0,-0.1),
+        xycoords="axes fraction",
+        ha="right",
+        va="center",
+        fontsize=8)
     plt.savefig(
-        CHART_PATH / f"Top_Fullgame_Submitters_{curr_date}.png", format="png", bbox_inches="tight")
+        CHART_PATH / f"Top_Fullgame_Submitters_{curr_date}.png",
+        format="png",
+        bbox_inches="tight",
+        transparent=transparent)
     plt.close()
 
     # Graph IL submissions
     rc = runner_count['IL'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top IL Submitters", color='C1')
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
     rc.bar_label(rc.containers[0])
-    rc.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    rc.annotate(
+        f"Generated on {curr_date}",
+        xy=(1.0,-0.1),
+        xycoords="axes fraction",
+        ha="right",
+        va="center",
+        fontsize=8)
     plt.savefig(
-        CHART_PATH / f"Top_IL_Submitters_{curr_date}.png", format="png", bbox_inches="tight")
+        CHART_PATH / f"Top_IL_Submitters_{curr_date}.png",
+        format="png",
+        bbox_inches="tight",
+        transparent=transparent)
 
 
-def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", color="C0", legend=True):
+def plot_long_standing_wrs(
+        wr_list,
+        title="Longest Standing World Records",
+        color="C0",
+        legend=True,
+        transparent=False):
     """Given a list of WRs and how long they've stood, plot 'em"""
     # Create a title col out of the other cols
     wr_list["Title"] = wr_list.apply(
@@ -280,5 +340,15 @@ def plot_long_standing_wrs(wr_list, title="Longest Standing World Records", colo
 
     lwr = wr_list[:10].sort_values("stood_for", ascending=True).plot.barh(x='Title', y='Days', title=title, color=color, legend=legend)
     lwr.bar_label(lwr.containers[0])
-    lwr.annotate(f"Generated on {curr_date}", xy=(1.0,-0.1), xycoords="axes fraction", ha="right", va="center", fontsize=8)
-    plt.savefig(CHART_PATH / f"{title}_{curr_date}.png", format="png", bbox_inches="tight", transparent=True)
+    lwr.annotate(
+        f"Generated on {curr_date}",
+        xy=(1.0,-0.1),
+        xycoords="axes fraction",
+        ha="right",
+        va="center",
+        fontsize=8)
+    plt.savefig(
+        CHART_PATH / f"{title}_{curr_date}.png",
+        format="png",
+        bbox_inches="tight",
+        transparent=transparent)
