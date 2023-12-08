@@ -14,7 +14,7 @@ plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data(filter_users=True, refresh=False):
+def join_all_data(filter_users=True, refresh=True):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever
     
     filter_users removes Stupid Rat and Rejected runs from the dataset
@@ -50,6 +50,7 @@ def join_all_data(filter_users=True, refresh=False):
 def get_il_counts():
     """Load in, join, and group data to get counts of IL runs per level/category"""
     runs_level = join_all_data()
+    runs_level = runs_level[runs_level["is_il"]]
 
     # Get run counts broken up by level and category
     return runs_level.groupby(['short_name', 'Categories']).count().unstack('Categories').loc[:, ('id_runs')].fillna(0)
@@ -76,7 +77,7 @@ def get_wr_runs(filter_users=True):
     return runs[runs["was_wr"]].copy()
     
 
-def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_users=True):
+def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_users=True, result_count=20):
     """Get the longest-standing WRs"""
     wr_runs = get_wr_runs(filter_users=filter_users)
 
@@ -102,7 +103,7 @@ def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_u
          'short_name', 'Categories',
          'primary_t', 'date', 'next_wr_date',
          'stood_for', 'is_active']
-        ].sort_values('stood_for', ascending=False).head(20)
+        ].sort_values('stood_for', ascending=False).head(result_count)
 
 
 def get_leaderboard(category, level, refresh=True):
@@ -171,7 +172,7 @@ def plot_minute_histogram(
 
 def plot_runs_per_week(transparent=False):
     """Plot the number of runs per week, split by fullgame/IL"""
-    runs = join_all_data()
+    runs = join_all_data(refresh=True)
     runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
 
     runs_per_week = runs.groupby(['run_week', 'is_il'])['id'].count().unstack('is_il')
@@ -188,6 +189,7 @@ def plot_runs_per_week(transparent=False):
     plt.axvspan(13.5, 18.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(22.5, 27.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(31.5, 35.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(40.5, 41.5, facecolor='0.2', alpha=0.2)
     rp.annotate(
         f"Generated on {curr_date}",
         xy=(1.0,-0.2),
@@ -227,10 +229,10 @@ def plot_il_graph(transparent=False):
         transparent=transparent)
     return x
 
+
 def plot_top_ils(transparent=False):
     """Create graphs for the top levels per each IL category"""
-    runs = join_all_data(filter_users=True, refresh=True)
-    il_counts = runs.groupby(["short_name", "Categories"])["id_runs"].count().unstack("Categories").fillna(0)
+    il_counts = get_il_counts()
     curr_date = datetime.utcnow().strftime('%Y-%m-%d')
 
     def plot_top_il_helper(category, color):
@@ -280,52 +282,43 @@ def plot_top_submitters(transparent=False):
     runner_count.rename({True: "IL", False: "Full Game"}, axis=1, inplace=True)
     runner_count.loc[:, ("total_count")] = runner_count["IL"] + runner_count["Full Game"]
 
-    # Graph Fullgame submissions
-    rc = runner_count['Full Game'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top Fullgame Submitters")
-    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
-    rc.bar_label(rc.containers[0])
-    rc.annotate(
-        f"Generated on {curr_date}",
-        xy=(1.0,-0.1),
-        xycoords="axes fraction",
-        ha="right",
-        va="center",
-        fontsize=8)
-    plt.savefig(
-        CHART_PATH / f"Top_Fullgame_Submitters_{curr_date}.png",
-        format="png",
-        bbox_inches="tight",
-        transparent=transparent)
-    plt.close()
+    def plot_top_submitters_helper(count_field, title, color="C0"):
+        rc = runner_count[count_field].sort_values(ascending=False)[:10]\
+            .sort_values(ascending=True).plot.barh(title=title, color=color)
+        curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+        rc.bar_label(rc.containers[0])
+        rc.annotate(
+            f"Generated on {curr_date}",
+            xy=(1.0,-0.1),
+            xycoords="axes fraction",
+            ha="right",
+            va="center",
+            fontsize=8)
+        plt.savefig(
+            CHART_PATH / f"{title}_{curr_date}.png",
+            format="png",
+            bbox_inches="tight",
+            transparent=transparent)
+        plt.close()
 
-    # Graph IL submissions
-    rc = runner_count['IL'].sort_values(ascending=False)[:10].sort_values(ascending=True).plot.barh(title="Top IL Submitters", color='C1')
-    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
-    rc.bar_label(rc.containers[0])
-    rc.annotate(
-        f"Generated on {curr_date}",
-        xy=(1.0,-0.1),
-        xycoords="axes fraction",
-        ha="right",
-        va="center",
-        fontsize=8)
-    plt.savefig(
-        CHART_PATH / f"Top_IL_Submitters_{curr_date}.png",
-        format="png",
-        bbox_inches="tight",
-        transparent=transparent)
+    plot_top_submitters_helper("Full Game", title="Top Full Game Submitters", color="C1")
+    plot_top_submitters_helper("IL", title="Top IL Submitters", color="C2")
+    plot_top_submitters_helper("total_count", title="Top Submitters", color="C0")
 
 
 def plot_long_standing_wrs(
         wr_list,
+        full_game,
         title="Longest Standing World Records",
         color="C0",
         legend=True,
         transparent=False):
     """Given a list of WRs and how long they've stood, plot 'em"""
     # Create a title col out of the other cols
+    format_str = "{runner_name}'s {Category}\n({date} to {next_wr_date})'"\
+         if full_game else "{runner_name}'s {short_name} {Category}\n({date} to {next_wr_date})'"
     wr_list["Title"] = wr_list.apply(
-        lambda x: "{runner_name}'s {short_name} {Category}\n({date} to {next_wr_date})'"\
+        lambda x: format_str\
             .format(
                 runner_name=x.runner_name,
                 short_name=x.short_name,
