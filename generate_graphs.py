@@ -7,22 +7,16 @@ import pandas as pd
 
 from utils import DATA_PATH, CHART_PATH, get_user_name
 
-# So we don't need to rejoin the data every time we run a graph, we cache it
-RUN_JOIN_CACHE = None
 
 plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data(filter_users=True, refresh=True):
+def join_all_data(filter_users=True):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever
     
     filter_users removes Stupid Rat and Rejected runs from the dataset
-    refresh recreates the data instead of re-using RUN_JOIN_CACHE
     """
-    global RUN_JOIN_CACHE
-    if not (refresh or RUN_JOIN_CACHE is None):
-        return RUN_JOIN_CACHE
 
     runs = pd.read_parquet(DATA_PATH / "PT_runs.parquet")
     levels = pd.read_parquet(DATA_PATH / "PT_levels.parquet")
@@ -41,8 +35,6 @@ def join_all_data(filter_users=True, refresh=True):
     if filter_users:
         runs_level = runs_level.loc[runs_level['is_rat'] == False]
         runs_level = runs_level.loc[runs_level['status_judgment'] == 'verified']
-
-    RUN_JOIN_CACHE = runs_level
 
     return runs_level
 
@@ -69,7 +61,7 @@ def get_verifier_stats():
 
 def get_wr_runs(filter_users=True):
     """Filter the run set to runs that were WR at the time they happened"""
-    runs = join_all_data(filter_users=filter_users, refresh=True)
+    runs = join_all_data(filter_users=filter_users)
     runs.sort_values(["date", "submitted"], inplace=True)
     runs["wr_t"] = runs.groupby(["Categories", "short_name"])['primary_t'].cummin()
     runs["was_wr"] = runs.apply(lambda x: x.primary_t == x.wr_t, axis=1)
@@ -106,20 +98,34 @@ def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_u
         ].sort_values('stood_for', ascending=False).head(result_count)
 
 
-def get_leaderboard(category, level, refresh=True):
+def get_leaderboard(category, level, barrier_cutoff_date=None):
     """Pull out current active runs for all users on the board and order it by time
     to get the current leaderboard"""
-    runs = join_all_data(filter_users=True, refresh=refresh)
+    runs = join_all_data(filter_users=True)
     runs = runs[(runs["Categories"] == category) & (runs["short_name"] == level)].sort_values('date')
+
     latest_runs = runs.groupby("pid").tail(1)
+
+    # If I'm marking new minute barriers, get a copy of the leaderboard as of the barrier_cutoff_date
+    if barrier_cutoff_date:
+        runs_before_cutoff = runs[runs['date'] <= barrier_cutoff_date]
+        latest_before_cutoff = runs_before_cutoff.groupby("pid").tail(1)
+        latest_runs = pd.merge(
+            latest_runs,
+            latest_before_cutoff[['pid', 'primary_t']],
+            left_on="pid",
+            right_on="pid",
+            how="left",
+            suffixes=(None, "_prior"))
+
     return latest_runs.sort_values("primary_t")
 
 
 # CSV export, for XBC
 
-def export_joined_runs_csv(refresh=False):
+def export_joined_runs_csv():
     """Export a CSV with the nested fields removed"""
-    joined_run_list = join_all_data(refresh)
+    joined_run_list = join_all_data()
     scrubbed_run_list = joined_run_list[[
         'id_runs', 'weblink_runs', 'game', 'level', 'short_name', 'category', 'name_categories',
         'date', 'submitted', 'primary_t', 'pid', 'is_il', 'status_judgment', 
@@ -169,10 +175,68 @@ def plot_minute_histogram(
         transparent=transparent)
     return rp
 
+def plot_minute_histogram_with_new_runs(
+        leaderboard,
+        category_name,
+        minute_cutoff=1000,
+        fill_minutes=False,
+        color='C0',
+        new_run_color='C1',
+        transparent=False):
+    """Try out the new subplot-based process for creating graphs"""
+
+    # Sort the runs into minute buckets, both old and new
+    leaderboard['minute_time'] = np.floor(leaderboard['primary_t'] / 60)
+    leaderboard['last_month_minute_time'] = np.floor(leaderboard['primary_t_prior'] / 60).fillna(900000000.0)
+    leaderboard['new_minute_barrier'] = leaderboard['minute_time'] < leaderboard['last_month_minute_time']
+
+    # Cutoff runs
+    lb_cutoff = leaderboard[leaderboard['minute_time'] <= minute_cutoff]
+    lb_minutes = lb_cutoff.groupby(['minute_time', 'new_minute_barrier']).count().unstack('new_minute_barrier').fillna(0)
+
+    if fill_minutes:
+        # Fill in missing minutes with 0
+        lb_times = range(int(lb_minutes.index.min()), int(lb_minutes.index.max()+1))
+        lb_minutes = lb_minutes.reindex(index=lb_times, fill_value=0)
+
+    minutes = lb_minutes['id'].copy()
+    minutes['total'] = minutes[False] + minutes[True]
+    minutes['total'] = minutes['total'].fillna(0)
+
+    # Build da graph
+    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
+    fig, ax = plt.subplots()
+
+    p = ax.bar(minutes.index.values, minutes['total'])
+    ax.bar(minutes.index.values, minutes[False], color=color, label="Older Runs")
+    ax.bar(
+        minutes.index.values,
+        minutes[True],
+        bottom=minutes[False],
+        color=new_run_color,
+        label="New Runs")
+    
+    ax.bar_label(p)
+    ax.legend()
+    plt.xticks(minutes.index.values, rotation=90)
+
+    plt.ylim(0, max(minutes['total']+2))
+    plt.xlim(min(minutes.index.values)-1, max(minutes.index.values)+1)
+    plt.title(f"{category_name} Minute Barriers")
+    plt.xlabel("Run Minutes")
+    plt.ylabel("Players")
+
+    ax.annotate(f"Generated on {curr_date}", xy=(1.0,-0.15), xycoords="axes fraction", ha="right", va="center", fontsize=8)
+    plt.savefig(
+        CHART_PATH / f"{category_name}_minute_barriers_{curr_date}.png",
+        format="png",
+        bbox_inches="tight", 
+        transparent=transparent)
+
 
 def plot_runs_per_week(transparent=False):
     """Plot the number of runs per week, split by fullgame/IL"""
-    runs = join_all_data(refresh=True)
+    runs = join_all_data()
     runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
 
     runs_per_week = runs.groupby(['run_week', 'is_il'])['id'].count().unstack('is_il')
@@ -189,7 +253,7 @@ def plot_runs_per_week(transparent=False):
     plt.axvspan(13.5, 18.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(22.5, 27.5, facecolor='0.2', alpha=0.2)
     plt.axvspan(31.5, 35.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(40.5, 41.5, facecolor='0.2', alpha=0.2)
+    plt.axvspan(40.5, 44.5, facecolor='0.2', alpha=0.2)
     rp.annotate(
         f"Generated on {curr_date}",
         xy=(1.0,-0.2),
@@ -275,7 +339,7 @@ def plot_single_il(category, color):
 
 def plot_top_submitters(transparent=False):
     """Create graphs for both top IL and top fullgame submitters"""
-    runs = join_all_data(filter_users=True, refresh=False)
+    runs = join_all_data(filter_users=True)
 
     # Group runs by runners and count up ILs/Fullgame runs
     runner_count = runs.groupby(["runner_name", "is_il"])["id_runs"].count().unstack("is_il").fillna(0)

@@ -1,4 +1,40 @@
-Overall TODO List:
+FUTURE WORK:
+- Fix the runs per week graph
+  - Make the month bars be in the back
+  - Make the month bars automagically
+- New Players per month graph?
+  - Just get the first run submitted by all players and count up
+- Maybe a way for you to see all new WRs in the month, which you can turn into
+  a news post
+- A List of all countries that have submitted runs, this may require pulling more
+  from the user-cache and a biiiig long pull that I should probably amortize
+- New runs per month broken down by category
+- John Gutter Special:
+  - Second Barriers
+  - WR history
+
+
+TODOs for December stats:
+- Graph list:
+  - Runs per week
+  - Minute barriers Any%/100%
+    - Mark new broken barriers
+  - Long-standing records/active records
+- I want to mark new runs that break minute barriers
+  - To do this I need to check if the runner has broken this minute barrier
+    since the last stats post, which I guess I can feed as an argument
+- I should un-cache the run join since I may want to filter/not filter different
+  datasets for different graphs
+- I also wanna get the runs per week bars automatic
+  - Also maybe behind the bars but that's probably not a one-day thing
+- Maybe in the future a function to count the number of new run submitters
+  in the month
+
+TOMORROW: Build that shit live for the post, but then change the functionality
+  so the function uses the subplot axes functionality. Should help the weekly
+  graph as well
+
+Overall TODO List (Novemeber 1000 member event):
 - Refactoring: 
   + Add DATA_PATH, CHART_PATH, and the init function that creates them to the utils.py script
   + Save figures in the functions that generate graphs
