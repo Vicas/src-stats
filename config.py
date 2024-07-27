@@ -27,7 +27,7 @@ class SpeedrunBoard:
     id: str
 
 """List of boards I pull from, with a file prefix and SRC ID"""
-boards = {
+BOARDS = {
     "PT": SpeedrunBoard(
         short_name="PT",
         id="o6gnpox1",
@@ -42,7 +42,7 @@ boards = {
     )
 }
 
-datasets = {
+DATASETS = {
     "levels": LoadConfig(
         local_path="levels",
         api_endpoint="games/{game_id}/levels",
@@ -56,6 +56,7 @@ datasets = {
         api_endpoint="runs",
         api_args_dict={
             "game": "{game_id}",
+            "max": 200,
         }
     )
 }

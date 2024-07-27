@@ -1,3 +1,52 @@
+Not sure where else to put this, since it's not that useful. My SRC_ID is v81v7558
+
+DESIRED PROGRAM FLOW:
+1) SRC endpoints like levels/categories/runs that I require get their own dedicated
+   scrape functions that handle getting data onto your machine
+2) These functions call my `load_data` function, which handles interfacing with the API
+   and applying enrichment functions
+   a) Pre-enriched data can also be read locally here as a sort of cache, but this is
+      probably not necessary. generate_graphs already reads parquet directly so this
+      option just muddies the call-chain
+   b) It calls the API by building an arg string with build_arg_str and then the big one,
+      query_api
+   c) Enrich the data with the enrich function provided to load_data
+   d) Save the data to disk
+   e) return the enriched DF if you want to use it for more
+3) `query_api` is the big one, this handles actually talking with the src API
+   a) I think the big thing I need to do here is define a specific output for this function.
+      the weirdness mostly comes with parsing out paginated results into one, and what
+      parts of the raw HTTP I strip out vs what gets returned
+
+JULY 2023 GITHUB GLOW UP:
+- The goal is to get this into a state where I can pass this along to others 
+  and allow them to add new graphs and features and just play around with it
+* The biggest thing I want to do is separate enrichment into its own python script
+  and make all enriched columns more obvious, probably by prepending `e_` to them
+  - Push the `format_results` functionality into the scraper so that your api query
+    function handles surfacing a consistent view of the data without any of the HTTP
+    wrappers
+  - I may need to figure out accessing list elements in pandas to handle the new 1P/2P
+    stuff, since right now I just extract 1P and idk if just extracting 2P as well is
+    sufficient.
+  - I don't remember why I did the dummy thing but I'm pretty sure it was important lol
+- Try to store data in its original format and with no deletions (players list comes 
+  to mind)
+- Find globals and put them in a script for easy tuning
+- Add Pep/Noise/Swap column that parses run type
+  - You may want this to be more generic later on but for now it's just for PT
+- Add ruff as a pre-commit hook
+- Write a tutorial for getting this running in WSL as part of the readme
++ Add sleeps to the user-fetch function
+- Stretch: rewrite the Query API to be a little more generic
+  * Quickly refamiliarize yourself with the v1/v2 src endpoints and their shortcomings
+    ! Oh hey, you can increace pagination, look into that
+  - Start explicitly handling pagination in query_api so that it's invisible outside of it
+  + Read the Real Python tutorial on the requests library. It's a diversion but will
+    hopefully help you clean up query_api a lot
+    + This helped me understand passing args, neat!
+- Stretch: See what it would take to get this running on Windows
+
 FUTURE WORK:
 - Fix the runs per week graph
   - Make the month bars be in the back
@@ -12,6 +61,17 @@ FUTURE WORK:
 - John Gutter Special:
   - Second Barriers
   - WR history
+
+
+TODOs for January Stats:
++ Category split! Update your models to take in subcategories
+  + Grab and save variables from the games/{ID}/variables endpoint, probably pickled?
+    it's a multilevel dict
+  + Link in that variable dict to get the glitched status of the run
+- Gotta figure out how I want to represent this, probably in front of 
+- Truncate the runs per week graph (basically done, just noting it)
+- I should make the New Runners graph I've been thinking about
+
 
 
 TODOs for December stats:
