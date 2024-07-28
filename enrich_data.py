@@ -22,7 +22,7 @@ def enrich_levels(lev_df):
 
     # Add short names for graph display purposes
     lev_df["e_short_name"] = lev_df['name'].apply(lambda x: map_short_name(x))
-    lev_df["e_era"] = lev_df['short_name'].apply(lambda x: mark_level_era(x))
+    lev_df["e_era"] = lev_df['e_short_name'].apply(lambda x: mark_level_era(x))
 
     return lev_df
 
@@ -39,23 +39,23 @@ def enrich_runs(run_df):
     run_df['date'] = pd.to_datetime(run_df['date'])
 
     # Tag Stupid Rat runs
-    run_df['e_is_rat'] = run_df.apply(lambda x: x['player']['rel'] == 'guest' and x['player']['name'] == 'Stupid Rat', axis=-1)
+    run_df['e_is_rat'] = run_df['players'].apply(lambda x: x[0]['rel'] == 'guest' and x[0]['name'] == 'Stupid Rat')
 
-    # Make primary time a first-level column
-    run_df['e_primary_t'] = run_df.apply(lambda x: x['times']['primary_t'], axis=-1)
+    # Make primary time a top-level column
+    run_df['e_primary_t'] = run_df['times'].apply(lambda x: x['primary_t'])
 
     # Tag ILs
     run_df['e_is_il'] = run_df['level'].apply(lambda x: x is not None)
 
     # Extract playerids, if you want 'em
-    run_df['e_pid'] = run_df['player'].apply(lambda x: x['id'] if 'id' in x else None)
+    run_df['e_pid'] = run_df['players'].apply(lambda x: x[0]['id'] if 'id' in x[0] else None)
 
     # Extract run status
     run_df['e_status_judgment'] = run_df['status'].apply(lambda x: x['status'])
 
     # Get the runner's username
-    run_df['e_runner_name'] = run_df['player'].apply(
-        lambda x: get_user_name(x['id']) if 'id' in x else "Guest"
+    run_df['e_runner_name'] = run_df['e_pid'].apply(
+        lambda x: get_user_name(x) if x else "Guest"
     )
 
     return run_df

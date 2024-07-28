@@ -29,12 +29,12 @@ def join_all_data(filter_users=True):
     runs_level['Categories'] = runs_level['name_categories']
 
     # Mark runs without a short_name as full game, for convenience
-    runs_level["short_name"] = runs_level["short_name"].fillna("Full Game")
+    runs_level["e_short_name"] = runs_level["e_short_name"].fillna("Full Game")
 
     # Remove Stupid Rat and Rejected runs
     if filter_users:
-        runs_level = runs_level.loc[runs_level['is_rat'] == False]
-        runs_level = runs_level.loc[runs_level['status_judgment'] == 'verified']
+        runs_level = runs_level.loc[runs_level['e_is_rat'] == False]
+        runs_level = runs_level.loc[runs_level['e_status_judgment'] == 'verified']
 
     return runs_level
 
@@ -42,10 +42,10 @@ def join_all_data(filter_users=True):
 def get_il_counts():
     """Load in, join, and group data to get counts of IL runs per level/category"""
     runs_level = join_all_data()
-    runs_level = runs_level[runs_level["is_il"]]
+    runs_level = runs_level[runs_level["e_is_il"]]
 
     # Get run counts broken up by level and category
-    return runs_level.groupby(['short_name', 'Categories']).count().unstack('Categories').loc[:, ('id_runs')].fillna(0)
+    return runs_level.groupby(['e_short_name', 'Categories']).count().unstack('Categories').loc[:, ('id_runs')].fillna(0)
 
 
 def get_verifier_stats():
@@ -63,8 +63,8 @@ def get_wr_runs(filter_users=True):
     """Filter the run set to runs that were WR at the time they happened"""
     runs = join_all_data(filter_users=filter_users)
     runs.sort_values(["date", "submitted"], inplace=True)
-    runs["wr_t"] = runs.groupby(["Categories", "short_name"])['primary_t'].cummin()
-    runs["was_wr"] = runs.apply(lambda x: x.primary_t == x.wr_t, axis=1)
+    runs["wr_t"] = runs.groupby(["Categories", "e_short_name"])['e_primary_t'].cummin()
+    runs["was_wr"] = runs.apply(lambda x: x.e_primary_t == x.wr_t, axis=1)
 
     return runs[runs["was_wr"]].copy()
     
@@ -74,7 +74,7 @@ def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_u
     wr_runs = get_wr_runs(filter_users=filter_users)
 
     # Get the date of the next WR after this one
-    wr_runs.loc[:, "next_wr_date"] = wr_runs.groupby(["Categories", "short_name"])['date'].shift(-1)
+    wr_runs.loc[:, "next_wr_date"] = wr_runs.groupby(["Categories", "e_short_name"])['date'].shift(-1)
 
     # Mark currently-standing WRs, then fill in blank dates for time comparisons
     wr_runs.loc[:, "is_active"] = wr_runs["next_wr_date"].isna()
@@ -87,13 +87,13 @@ def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_u
         wr_runs = wr_runs[wr_runs['is_active']]
 
     if fullgame_only:
-        wr_runs = wr_runs[~wr_runs['is_il']]
+        wr_runs = wr_runs[~wr_runs['e_is_il']]
 
     # Return the top 20 longest-standing WRs
     return wr_runs[
-        ['id_runs', 'runner_name',
-         'short_name', 'Categories',
-         'primary_t', 'date', 'next_wr_date',
+        ['id_runs', 'e_runner_name',
+         'e_short_name', 'Categories',
+         'e_primary_t', 'date', 'next_wr_date',
          'stood_for', 'is_active']
         ].sort_values('stood_for', ascending=False).head(result_count)
 
@@ -102,23 +102,23 @@ def get_leaderboard(category, level, barrier_cutoff_date=None):
     """Pull out current active runs for all users on the board and order it by time
     to get the current leaderboard"""
     runs = join_all_data(filter_users=True)
-    runs = runs[(runs["Categories"] == category) & (runs["short_name"] == level)].sort_values('date')
+    runs = runs[(runs["Categories"] == category) & (runs["e_short_name"] == level)].sort_values('date')
 
-    latest_runs = runs.groupby("pid").tail(1)
+    latest_runs = runs.groupby("e_pid").tail(1)
 
     # If I'm marking new minute barriers, get a copy of the leaderboard as of the barrier_cutoff_date
     if barrier_cutoff_date:
         runs_before_cutoff = runs[runs['date'] <= barrier_cutoff_date]
-        latest_before_cutoff = runs_before_cutoff.groupby("pid").tail(1)
+        latest_before_cutoff = runs_before_cutoff.groupby("e_pid").tail(1)
         latest_runs = pd.merge(
             latest_runs,
-            latest_before_cutoff[['pid', 'primary_t']],
-            left_on="pid",
-            right_on="pid",
+            latest_before_cutoff[['e_pid', 'e_primary_t']],
+            left_on="e_pid",
+            right_on="e_pid",
             how="left",
             suffixes=(None, "_prior"))
 
-    return latest_runs.sort_values("primary_t")
+    return latest_runs.sort_values("e_primary_t")
 
 
 # CSV export, for XBC
@@ -127,8 +127,8 @@ def export_joined_runs_csv():
     """Export a CSV with the nested fields removed"""
     joined_run_list = join_all_data()
     scrubbed_run_list = joined_run_list[[
-        'id_runs', 'weblink_runs', 'game', 'level', 'short_name', 'category', 'name_categories',
-        'date', 'submitted', 'primary_t', 'pid', 'is_il', 'status_judgment', 
+        'id_runs', 'weblink_runs', 'game', 'level', 'e_short_name', 'category', 'name_categories',
+        'date', 'submitted', 'e_primary_t', 'e_pid', 'e_is_il', 'e_status_judgment', 
         ]]
     scrubbed_run_list.to_csv(
         DATA_PATH / f"joined_runs_export_{datetime.utcnow().strftime('%Y-%m-%d')}.csv",
@@ -150,7 +150,7 @@ def plot_minute_histogram(
     with a cutoff for runs slower than minute_cutoff"""
 
     # Sort the runs into minute buckets
-    leaderboard['minute_time'] = np.floor(leaderboard['primary_t'] / 60)
+    leaderboard['minute_time'] = np.floor(leaderboard['e_primary_t'] / 60)
 
     # Cutoff runs
     lb_cutoff = leaderboard[leaderboard['minute_time'] <= minute_cutoff]
@@ -186,8 +186,8 @@ def plot_minute_histogram_with_new_runs(
     """Try out the new subplot-based process for creating graphs"""
 
     # Sort the runs into minute buckets, both old and new
-    leaderboard['minute_time'] = np.floor(leaderboard['primary_t'] / 60)
-    leaderboard['last_month_minute_time'] = np.floor(leaderboard['primary_t_prior'] / 60).fillna(900000000.0)
+    leaderboard['minute_time'] = np.floor(leaderboard['e_primary_t'] / 60)
+    leaderboard['last_month_minute_time'] = np.floor(leaderboard['e_primary_t_prior'] / 60).fillna(900000000.0)
     leaderboard['new_minute_barrier'] = leaderboard['minute_time'] < leaderboard['last_month_minute_time']
 
     # Cutoff runs
@@ -239,7 +239,7 @@ def plot_runs_per_week(transparent=False):
     runs = join_all_data()
     runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
 
-    runs_per_week = runs.groupby(['run_week', 'is_il'])['id'].count().unstack('is_il')
+    runs_per_week = runs.groupby(['run_week', 'e_is_il'])['id'].count().unstack('e_is_il')
     runs_per_week["run_week"] = pd.to_datetime(runs_per_week.index)
     runs_per_week['run_week_str'] = runs_per_week['run_week'].apply(lambda x: x.strftime('%b-%d'))
 
@@ -342,7 +342,7 @@ def plot_top_submitters(transparent=False):
     runs = join_all_data(filter_users=True)
 
     # Group runs by runners and count up ILs/Fullgame runs
-    runner_count = runs.groupby(["runner_name", "is_il"])["id_runs"].count().unstack("is_il").fillna(0)
+    runner_count = runs.groupby(["e_runner_name", "e_is_il"])["id_runs"].count().unstack("e_is_il").fillna(0)
     runner_count.rename({True: "IL", False: "Full Game"}, axis=1, inplace=True)
     runner_count.loc[:, ("total_count")] = runner_count["IL"] + runner_count["Full Game"]
 
@@ -379,13 +379,13 @@ def plot_long_standing_wrs(
         transparent=False):
     """Given a list of WRs and how long they've stood, plot 'em"""
     # Create a title col out of the other cols
-    format_str = "{runner_name}'s {Category}\n({date} to {next_wr_date})'"\
-         if full_game else "{runner_name}'s {short_name} {Category}\n({date} to {next_wr_date})'"
+    format_str = "{e_runner_name}'s {Category}\n({date} to {next_wr_date})'"\
+         if full_game else "{e_runner_name}'s {e_short_name} {Category}\n({date} to {next_wr_date})'"
     wr_list["Title"] = wr_list.apply(
         lambda x: format_str\
             .format(
-                runner_name=x.runner_name,
-                short_name=x.short_name,
+                e_runner_name=x.e_runner_name,
+                e_short_name=x.e_short_name,
                 Category=x.Categories,
                 date=x.date.strftime("%y-%m-%d"),
                 next_wr_date="Now" if x.is_active else x.next_wr_date.strftime("%y-%m-%d")),

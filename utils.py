@@ -41,6 +41,7 @@ SHORT_NAME_MAP = {
     "Pepperman": "Pepperman",
     "The Vigilante": "The Vigilante",
     "The Noise": "The Noise",
+    "The Noise/The Doise": "Noise/Doise",
     "Fake Peppino": "Fake Peppino",
     "Pizzaface": "Pizzaface",
     "Secrets of the World": "Secrets of the World",
@@ -98,7 +99,6 @@ def query_api(endpoint, game_id="", arg_dict=None):
     
     game_id is parameterized so that different games can be pulled with the same config"""
 
-    print("")
     formatted_endpoint = endpoint.format(game_id=game_id)
 
     s = requests.Session()
@@ -116,7 +116,9 @@ def query_api(endpoint, game_id="", arg_dict=None):
         response.raise_for_status()
 
     if "pagination" not in response.json():
-        return results['data']
+        if isinstance(response.json()['data'], list):
+            print(f"Got {len(response.json()['data'])} results")
+        return response.json()['data']
 
     # Unroll pagination to return a single list of all results
     results_list = []
