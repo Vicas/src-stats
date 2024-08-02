@@ -5,23 +5,62 @@ import pandas as pd
 import requests
 from copy import copy
 
-from config import BOARDS, DATASETS, DATA_PATH, SRC_API_URL, PT_ID
+from config import DATASETS, DATA_PATH, SRC_API_URL, PT_ID, GameInfo, LoadConfig
 from enrich_data import enrich_categories, enrich_levels, enrich_runs
 from utils import query_api
 
 
 """Loading different datasets"""
 
-def get_levels(board_ids):
+def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_PATH):
+    """Download and enrich all categories, levels, variables, and optionally runs for a board.
+    Save them in save_path. If board_prefix is provided, saved files will start with it. Otherwise,
+    they will be prefixed by board_id."""
+    print(f"Fetching data for {board_id}")
+    game = query_api(f"{SRC_API_URL}/games/{board_id}")
+    file_prefix = board_prefix or board_id
+
+    # Extract links and download the categories, levels, variables, and runs
+    game_links = {link['rel']: link['uri'] for link in game['links']}
+
+    print("Fetching Levels...")
+    levels = load_data(game_links['levels'], enrich_levels, save_path=save_path / f"{file_prefix}_levels.parquet")
+
+    print("Fetching Categories...")
+    categories = load_data(game_links['categories'], enrich_categories, save_path=save_path / f"{file_prefix}_categories.parquet")
+
+    print("Fetching Variables...")
+    variables = load_data(game_links['variables'], lambda x: x, save_path=save_path / f"{file_prefix}_variables.parquet")
+
+    runs = None
+    if fetch_runs:
+        # The runs str needs to have max pagination added to it
+        print("Fetching Runs...")
+        runs = load_data(
+            game_links['runs'],
+            enrich_runs,
+            api_args={'max': 200},
+            save_path=save_path / f"{file_prefix}_runs.parquet")
+
+    return GameInfo(
+        game=game,
+        categories=categories,
+        levels=levels,
+        variables=variables,
+        runs=runs)
+
+
+def get_levels(board_id):
     """Get a list of all levels for the boards in board_ids (see boards in config.py)"""
-    return {
-        board: load_data(
-            DATASETS["levels"],
+    level_config = LoadConfig(
+        local_path="levels",
+        api_endpoint=f"games/{board_id}/levels",
+    )
+
+    return load_data(
+            level_config,
             enrich_levels,
-            board=board)
-        for board
-        in board_ids
-    }
+            board=board_id)
 
 
 def get_categories(board_ids):
@@ -90,22 +129,22 @@ def flatten_run_dict(run):
 
 """Data Loading Functions, separate from enrichment"""
 
-def load_data(dataset, enrich_data_fun, board="PT", save_results=True):
-    """Handle the loading of data, local or via API. If the data is loaded via the API,
-    clean it up with the enrich_data function"""
+def load_data(
+        api_endpoint,
+        enrich_data_fun,
+        api_args=None,
+        save_path=None):
+    """Fetch data with the SRC API, then enrich it with the enrich_data function and optionally save it."""
     
-    # Get the game ID and args dict for the endpoint. If the args_dict contains `game`, fill it with the game ID
-    game_id = BOARDS[board].id
-    args_dict = copy(dataset.api_args_dict)
-    if "game" in args_dict:
-        args_dict["game"] = game_id
-    api_return = query_api(dataset.api_endpoint, game_id, args_dict)
+    api_return = query_api(api_endpoint, api_args)
 
     data_df = pd.DataFrame(api_return)
-    data_df = enrich_data_fun(data_df)
+
+    if len(api_return):
+        data_df = enrich_data_fun(data_df)
 
     # Cache the results on local disk
-    if save_results:
-        data_df.to_parquet(path=DATA_PATH / f"{board}_{dataset.local_path}.parquet")
+    if save_path:
+        data_df.to_parquet(path=save_path)
 
     return data_df

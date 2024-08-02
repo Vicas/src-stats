@@ -73,9 +73,9 @@ def get_user_name(pid):
     if pid in USER_PICKLE:
         return USER_PICKLE[pid]['international']
 
-    # Re-save the pickle file every time we grab a new name, this should be pretty expensive at
+    # Re-save the pickle file every time we grab a new name, this will be pretty expensive at
     # first but fall off very quickly as we get all the regulars
-    api_return = query_api(f"users/{pid}")
+    api_return = query_api(f"{SRC_API_URL}/users/{pid}")
 
     api_return = api_return["names"]
     print(f"Fetched new user {api_return['international']}")
@@ -94,12 +94,11 @@ def map_short_name(official_name):
 # Pagination gives you at most 200 results, so you gotta call the API again using
 # the return value's pagination.links.uri for rel = 'next'
 # It ends when the pagination list doesn't have a 'next' value anymore
-def query_api(endpoint, game_id="", arg_dict=None):
-    """Query the SRC API and return all unpaginated results for endpoint with args.
-    
-    game_id is parameterized so that different games can be pulled with the same config"""
+def query_api(endpoint, arg_dict=None):
+    """Query the SRC API and return all results for endpoint with the given args. Handles unrolling pagination."""
 
-    formatted_endpoint = endpoint.format(game_id=game_id)
+    if SRC_API_URL not in endpoint:
+        raise Exception("Not a valid speedrun.com URL!")
 
     s = requests.Session()
     retries = Retry(total=10,
@@ -109,7 +108,7 @@ def query_api(endpoint, game_id="", arg_dict=None):
 
     # SRC results can either be paginated or unpaginated. Handle the first call, and then if
     # it contains a `pagination` key, go into the paginator workflow
-    response = s.get(f"{SRC_API_URL}/{formatted_endpoint}", params=arg_dict)
+    response = s.get(endpoint, params=arg_dict)
     time.sleep(SLEEP_INTERVAL)
     if response.status_code != 200:
         print(response.text)
