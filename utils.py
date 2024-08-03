@@ -87,7 +87,7 @@ def get_user_name(pid):
 
 def map_short_name(official_name):
     """Make a mapping between level names on SRC and the shortened forms I want to use on my charts"""
-    if not official_name in SHORT_NAME_MAP:
+    if official_name not in SHORT_NAME_MAP:
         raise Exception(f"Level Name Not Mapped: {official_name}")
     return SHORT_NAME_MAP[official_name]
 
@@ -120,14 +120,15 @@ def query_api(endpoint, arg_dict=None):
         return response.json()['data']
 
     # Unroll pagination to return a single list of all results
+    results = response.json()
+    next_url = get_next_uri(results)
     results_list = []
-    call_count = 1
     while response is not None:
         if response.status_code != 200:
             # So far the only error I've seen for valid requests is rate limits, so
             # sleep and retry when it happens
             print(response.text)
-            time.sleep(25)
+            time.sleep(10)
             results = s.get(next_url) if next_url else None
             continue
 
@@ -143,7 +144,6 @@ def query_api(endpoint, arg_dict=None):
         response = requests.get(next_url) if next_url else None
 
         time.sleep(SLEEP_INTERVAL)
-        call_count += 1
 
     print("")
 

@@ -3,7 +3,7 @@
 Fields added by these transformations will have e_ prepended to them to denote they
 aren't base API fields."""
 
-from utils import map_short_name, get_user_name
+from utils import map_short_name
 
 import pandas as pd
 

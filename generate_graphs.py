@@ -1,7 +1,6 @@
 
 from datetime import datetime
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -33,7 +32,7 @@ def join_all_data(filter_users=True):
 
     # Remove Stupid Rat and Rejected runs
     if filter_users:
-        runs_level = runs_level.loc[runs_level['e_is_rat'] == False]
+        runs_level = runs_level.loc[not runs_level['e_is_rat']]
         runs_level = runs_level.loc[runs_level['e_status_judgment'] == 'verified']
 
     return runs_level
