@@ -53,9 +53,14 @@ def enrich_runs(run_df):
     # Extract run status
     run_df['e_status_judgment'] = run_df['status'].apply(lambda x: x['status'])
 
+    # Commenting out the runner's username here so we don't do an expensive lookup for all
+    # usernames who've ever submitted. Sub in pid for now so it doesn't totally break graphing
+    run_df['e_runner_name'] = run_df['e_pid']
+    '''
     # Get the runner's username
     run_df['e_runner_name'] = run_df['e_pid'].apply(
         lambda x: get_user_name(x) if x else "Guest"
     )
+    '''
 
     return run_df

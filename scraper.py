@@ -16,6 +16,7 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_P
     """Download and enrich all categories, levels, variables, and optionally runs for a board.
     Save them in save_path. If board_prefix is provided, saved files will start with it. Otherwise,
     they will be prefixed by board_id."""
+
     print(f"Fetching data for {board_id}")
     game = query_api(f"{SRC_API_URL}/games/{board_id}")
     file_prefix = board_prefix or board_id
@@ -23,14 +24,27 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_P
     # Extract links and download the categories, levels, variables, and runs
     game_links = {link['rel']: link['uri'] for link in game['links']}
 
-    print("Fetching Levels...")
-    levels = load_data(game_links['levels'], enrich_levels, save_path=save_path / f"{file_prefix}_levels.parquet")
+    # TODO fill in vars on categories/levels/runs
+    print("Fetching Variables...")
+    variables = load_data(
+        game_links['variables'],
+        lambda x: x,
+        save_path=save_path / f"{file_prefix}_variables.parquet" if save_path else None
+    )
 
     print("Fetching Categories...")
-    categories = load_data(game_links['categories'], enrich_categories, save_path=save_path / f"{file_prefix}_categories.parquet")
+    categories = load_data(
+        game_links['categories'],
+        enrich_categories,
+        save_path=save_path / f"{file_prefix}_categories.parquet" if save_path else None
+    )
 
-    print("Fetching Variables...")
-    variables = load_data(game_links['variables'], lambda x: x, save_path=save_path / f"{file_prefix}_variables.parquet")
+    print("Fetching Levels...")
+    levels = load_data(
+        game_links['levels'],
+        enrich_levels,
+        save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None
+    )
 
     runs = None
     if fetch_runs:
@@ -40,7 +54,8 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_P
             game_links['runs'],
             enrich_runs,
             api_args={'max': 200},
-            save_path=save_path / f"{file_prefix}_runs.parquet")
+            save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
+        )
 
     return GameInfo(
         game=game,
@@ -50,42 +65,45 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_P
         runs=runs)
 
 
-def get_levels(board_id):
+def get_levels(board_id, board_prefix=None, save_path=DATA_PATH):
     """Get a list of all levels for the boards in board_ids (see boards in config.py)"""
-    level_config = LoadConfig(
-        local_path="levels",
-        api_endpoint=f"games/{board_id}/levels",
-    )
+    level_api = f"{SRC_API_URL}/games/{board_id}/levels"
+    file_prefix = board_prefix or board_id
 
     return load_data(
-            level_config,
+            level_api,
             enrich_levels,
-            board=board_id)
+            save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None)
 
 
-def get_categories(board_ids):
+def get_categories(board_id, board_prefix=None, save_path=DATA_PATH):
     """Get a list of all categories for the boards in board_ids (see boards in config.py)"""
-    return {
-        board: load_data(
-            DATASETS["categories"],
-            enrich_categories,
-            board=board)
-        for board
-        in board_ids
-    }
+    'https://www.speedrun.com/api/v1/games/o6gkxg91/categories',
+    category_api = f"{SRC_API_URL}/games/{board_id}/categories"
+    file_prefix = board_prefix or board_id
+
+    return load_data(
+        category_api,
+        enrich_categories,
+        save_path=save_path / f"{file_prefix}_categories.parquet" if save_path else None
+    )
 
 
+def get_runs(board_id, board_prefix=None, save_path=DATA_PATH):
+    """Query the speedrun.com API to get every run for the game in board_id.
+    
+    Because the runs endpoint requires the proper ID, lookup the game in case the user provided an abbreviation."""
 
-def get_all_runs(board_ids):
-    """Query the speedrun.com API to get every run in all boards in board_ids"""
-    return {
-        board: load_data(
-            DATASETS["runs"],
-            enrich_runs,
-            board=board)
-        for board
-        in board_ids
-    }
+    game = query_api(f"{SRC_API_URL}/games/{board_id}")
+    game_id = game['id']
+    runs_api = f"{SRC_API_URL}/runs?game={game_id}"
+    file_prefix = board_prefix or board_id
+    return load_data(
+        runs_api,
+        enrich_runs,
+        api_args={"max": 200},
+        save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
+    )
 
 
 def get_leaderboards():
@@ -112,19 +130,6 @@ def get_leaderboards():
         leaderboard_df = enrich_runs(run_list_flattened)
 
         leaderboard_df.to_parquet(path=DATA_PATH / f"PT_leaderboard_{category}_{current_date}.parquet")
-
-
-"""Dataset Enrichment functions"""
-
-def flatten_run_dict(run):
-    """Given a run dict, extract useful inner fields and drop non-useful ones"""
-    run['player'] = run['players'][-1]
-    if len(run["values"]) == -1:
-        run["values"]["dummy"] = ""
-
-    del run['players']
-
-    return run
 
 
 """Data Loading Functions, separate from enrichment"""
