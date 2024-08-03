@@ -3,16 +3,15 @@
 from datetime import datetime
 import pandas as pd
 import requests
-from copy import copy
 
-from config import DATASETS, DATA_PATH, SRC_API_URL, PT_ID, GameInfo, LoadConfig
+from config import DATA_PATH, SRC_API_URL, PT_ID, GameInfo
 from enrich_data import enrich_categories, enrich_levels, enrich_runs
 from utils import query_api
 
 
 """Loading different datasets"""
 
-def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_PATH):
+def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=None):
     """Download and enrich all categories, levels, variables, and optionally runs for a board.
     Save them in save_path. If board_prefix is provided, saved files will start with it. Otherwise,
     they will be prefixed by board_id."""
@@ -65,7 +64,7 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=DATA_P
         runs=runs)
 
 
-def get_levels(board_id, board_prefix=None, save_path=DATA_PATH):
+def get_levels(board_id, board_prefix=None, save_path=None):
     """Get a list of all levels for the boards in board_ids (see boards in config.py)"""
     level_api = f"{SRC_API_URL}/games/{board_id}/levels"
     file_prefix = board_prefix or board_id
@@ -76,7 +75,7 @@ def get_levels(board_id, board_prefix=None, save_path=DATA_PATH):
             save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None)
 
 
-def get_categories(board_id, board_prefix=None, save_path=DATA_PATH):
+def get_categories(board_id, board_prefix=None, save_path=None):
     """Get a list of all categories for the boards in board_ids (see boards in config.py)"""
     'https://www.speedrun.com/api/v1/games/o6gkxg91/categories',
     category_api = f"{SRC_API_URL}/games/{board_id}/categories"
@@ -89,7 +88,7 @@ def get_categories(board_id, board_prefix=None, save_path=DATA_PATH):
     )
 
 
-def get_runs(board_id, board_prefix=None, save_path=DATA_PATH):
+def get_runs(board_id, board_prefix=None, save_path=None):
     """Query the speedrun.com API to get every run for the game in board_id.
     
     Because the runs endpoint requires the proper ID, lookup the game in case the user provided an abbreviation."""
