@@ -45,7 +45,7 @@ def enrich_runs(run_df):
     run_df['e_primary_t'] = run_df['times'].apply(lambda x: x['primary_t'])
 
     # Tag ILs
-    run_df['e_is_il'] = run_df['level'].apply(lambda x: x is not None)
+    run_df['e_is_il'] = run_df['level'].apply(lambda x: 'IL' if x else "Full Game")
 
     # Extract playerids, if you want 'em
     run_df['e_pid'] = run_df['players'].apply(lambda x: x[0]['id'] if 'id' in x[0] else None)

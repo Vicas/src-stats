@@ -4,21 +4,20 @@ from datetime import datetime
 import pandas as pd
 import requests
 
-from config import DATA_PATH, SRC_API_URL, PT_ID, GameInfo
+from config import DATA_PATH, SRC_API_URL, PT_ID, BoardInfo
 from enrich_data import enrich_categories, enrich_levels, enrich_runs
 from utils import query_api
 
 
 """Loading different datasets"""
-
-def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=None):
+def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
     """Download and enrich all categories, levels, variables, and optionally runs for a board.
     Save them in save_path. If board_prefix is provided, saved files will start with it. Otherwise,
     they will be prefixed by board_id."""
 
     print(f"Fetching data for {board_id}")
     game = query_api(f"{SRC_API_URL}/games/{board_id}")
-    file_prefix = board_prefix or board_id
+    file_prefix = file_prefix or board_id
 
     # Extract links and download the categories, levels, variables, and runs
     game_links = {link['rel']: link['uri'] for link in game['links']}
@@ -56,12 +55,26 @@ def get_full_game(board_id, board_prefix=None, fetch_runs=True, save_path=None):
             save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
         )
 
-    return GameInfo(
+    return BoardInfo(
         game=game,
         categories=categories,
         levels=levels,
         variables=variables,
         runs=runs)
+
+
+def get_full_game_local(board_id, save_path, file_prefix=None):
+    """Lookup the main game info on SRC, but load runs, categories, levels, and variables from save_path"""
+    print(f"Fetching data for {board_id}")
+    game = query_api(f"{SRC_API_URL}/games/{board_id}")
+
+    return BoardInfo(
+        game=game,
+        categories=pd.read_parquet(save_path / f"{file_prefix}_categories.parquet"),
+        levels=pd.read_parquet(save_path / f"{file_prefix}_levels.parquet"),
+        variables=pd.read_parquet(save_path / f"{file_prefix}_variables.parquet"),
+        runs=pd.read_parquet(save_path / f"{file_prefix}_runs.parquet")
+    )
 
 
 def get_levels(board_id, board_prefix=None, save_path=None):

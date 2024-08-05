@@ -1,9 +1,10 @@
 
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from config import BoardInfo
 from utils import DATA_PATH, CHART_PATH, get_user_name
 
 
@@ -11,7 +12,7 @@ plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data(filter_users=True):
+def join_all_data(board_info: BoardInfo, filter_users=True):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever
     
     filter_users removes Stupid Rat and Rejected runs from the dataset
@@ -233,26 +234,38 @@ def plot_minute_histogram_with_new_runs(
         transparent=transparent)
 
 
-def plot_runs_per_week(transparent=False):
+def plot_runs_per_week(
+        board_info: BoardInfo,
+        start_date:datetime,
+        end_date:datetime=None,
+        il_split=False,
+        save_fig_path=None,
+        transparent=False):
     """Plot the number of runs per week, split by fullgame/IL"""
-    runs = join_all_data()
+    runs = board_info.runs
     runs['run_week'] = pd.to_datetime(runs['date'].dt.to_period('W').dt.start_time)
 
-    runs_per_week = runs.groupby(['run_week', 'e_is_il'])['id'].count().unstack('e_is_il')
+    if il_split:
+        runs_per_week = runs.groupby(['run_week', 'e_is_il'])['id'].count().unstack('e_is_il')
+    else:
+        runs_per_week = pd.DataFrame(runs.groupby('run_week')['id'].count())
+
     runs_per_week["run_week"] = pd.to_datetime(runs_per_week.index)
     runs_per_week['run_week_str'] = runs_per_week['run_week'].apply(lambda x: x.strftime('%b-%d'))
 
-    curr_date = datetime.utcnow().strftime('%Y-%m-%d')
-    rp = runs_per_week[["run_week_str", False, True]].plot.bar(x="run_week_str", stacked=True, title="Runs Per Week")
-    rp.legend(["Full Game","Individual Level"])
+    # Select down to the start/end dates provided
+    end_date = end_date or datetime.now()
+    mask = (runs_per_week['run_week'] >= start_date) & (runs_per_week['run_week'] <= end_date)
+    runs_per_week = runs_per_week.loc[mask]
 
-    # TODO: Hilarious hack for getting background stripes per month. We can definitely make this read the data
-    plt.axvspan(-0.5, 1.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(5.5, 9.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(13.5, 18.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(22.5, 27.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(31.5, 35.5, facecolor='0.2', alpha=0.2)
-    plt.axvspan(40.5, 44.5, facecolor='0.2', alpha=0.2)
+    curr_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+    if il_split:
+        rp = runs_per_week.plot.bar(x="run_week_str", y=["Full Game", "IL"], stacked=True, title="Runs Per Week")
+    else:
+        rp = runs_per_week.plot.bar(x="run_week_str", y='id', title="Runs Per Week")
+        rp.legend(["Runs"])
+
     rp.annotate(
         f"Generated on {curr_date}",
         xy=(1.0,-0.2),
@@ -260,11 +273,13 @@ def plot_runs_per_week(transparent=False):
         ha="right",
         va="center",
         fontsize=8)
-    plt.savefig(
-        CHART_PATH / f"runs_per_week_{curr_date}.png",
-        format="png",
-        bbox_inches="tight",
-        transparent=transparent)
+
+    if save_fig_path:
+        plt.savefig(
+            save_fig_path,
+            format="png",
+            bbox_inches="tight",
+            transparent=transparent)
     return rp
 
 
