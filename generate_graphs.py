@@ -260,10 +260,11 @@ def plot_runs_per_week(
 
     curr_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
+    title = f"{board_info.game['names']['international']} Runs Per Week"
     if il_split:
-        rp = runs_per_week.plot.bar(x="run_week_str", y=["Full Game", "IL"], stacked=True, title="Runs Per Week")
+        rp = runs_per_week.plot.bar(x="run_week_str", y=["Full Game", "IL"], stacked=True, title=title)
     else:
-        rp = runs_per_week.plot.bar(x="run_week_str", y='id', title="Runs Per Week")
+        rp = runs_per_week.plot.bar(x="run_week_str", y='id', title=title)
         rp.legend(["Runs"])
 
     rp.annotate(
