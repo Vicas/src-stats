@@ -8,10 +8,9 @@ This tool was originally written for the Pizza Tower speedrun board, but it shou
 
 ## Getting Started
 
-This repo expects you to be a bit familiar with Python and Pandas, and currently installs on Linux/WSL since that's where I felt like putting it. Native Windows functionality shouldn't be too hard but will require a once-over for incompatible code.
+This repo expects you to be a bit familiar with [Python](https://www.python.org/), and if you have some experience with [Pandas](https://pandas.pydata.org/) you'll be able to create your own data analysis and potentially even graphs for your boards.
 
-### Prerequisites
-If you're running this on Windows, you'll want to start by [installing WSL](https://learn.microsoft.com/en-us/windows/wsl/install). This tutorial assumes zero python/development experience, so if you're used to git and venvs, feel free to skip a few steps and handle this how you usually do.
+If you're on Windows, I recommend either installing [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) to get a unix terminal and download several prerequisite libraries by default. Alternatively, you'll want to download the latest version of [Python](https://www.python.org/downloads/) here and make sure to check "Add python.exe to PATH" in the installer so you can use the command line for instructions below. You'll also want to download [Git for Windows](https://git-scm.com/download/win) to be able to pull down the code. Installation instructions assume a Unix-like system, but most of these instructions can be run on Windows if you're familiar with the equivalent CMD/Powershell commands.
 
 ### Installing
 In a WSL terminal, navigate to your home folder, clone the repo, and create a venv to run in:
@@ -59,3 +58,4 @@ Known Issues/Future Reworks:
 * The SRC v1 API has an issue that if a board has more than 10000 runs, pagination will fail
 * I'd like to create a generic filtering/splitting syntax to pass to graphing functions for more fine-grained control on larger games with more complicated category setups
 * I will fully admit I don't know much about matplotlib, so the actual graphing code is pretty, uh, questionable. I'm hoping to pick it up a bit better and rework pretty much all of the graphing functionality in the future.
+* Similarly, the graphs look very basic right now, and I'd like to expose more of matplotlib's functionality to users (and make the defaults look nicer)
