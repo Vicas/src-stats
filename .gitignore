@@ -5,3 +5,5 @@ charts/
 .venv/
 .ipynb_checkpoints/
 *.ipynb
+
+notes.txt

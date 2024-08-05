@@ -1,10 +1,11 @@
 """Random useful util functions"""
 
-from functools import lru_cache
 import pickle
 import time
+import sys
 
 import requests
+from requests.adapters import HTTPAdapter, Retry
 
 from config import DATA_PATH, CHART_PATH, SRC_API_URL
 
@@ -12,6 +13,8 @@ from config import DATA_PATH, CHART_PATH, SRC_API_URL
 USER_PICKLE_PATH = DATA_PATH / "SRC_users.pkl"
 USER_PICKLE = None
 
+# Length of time in seconds to sleep after each API call (currently unused but keeping it here for now)
+SLEEP_INTERVAL = 0.0
 
 SHORT_NAME_MAP = {
     "Tutorial": "Tutorial",
@@ -38,6 +41,7 @@ SHORT_NAME_MAP = {
     "Pepperman": "Pepperman",
     "The Vigilante": "The Vigilante",
     "The Noise": "The Noise",
+    "The Noise/The Doise": "Noise/Doise",
     "Fake Peppino": "Fake Peppino",
     "Pizzaface": "Pizzaface",
     "Secrets of the World": "Secrets of the World",
@@ -48,6 +52,7 @@ SHORT_NAME_MAP = {
     "Pizzascare": "Pizzascare (SAGE)",
     "Strongcold": "Strongcold (SAGE)",
 }
+
 
 def init_folders():
     """Initialize folders for data/pngs in the project"""
@@ -68,19 +73,11 @@ def get_user_name(pid):
     if pid in USER_PICKLE:
         return USER_PICKLE[pid]['international']
 
-    # Re-save the pickle file every time we grab a new name, this should be pretty expensive at
+    # Re-save the pickle file every time we grab a new name, this will be pretty expensive at
     # first but fall off very quickly as we get all the regulars
-    retry_count = 0
-    while retry_count < 3:
-        api_return = requests.get(f"{SRC_API_URL}/users/{pid}").json()
-        if not 'data' in api_return:
-            print(api_return)
-            time.sleep(20)
-            retry_count += 1
-        else:
-            break
+    api_return = query_api(f"{SRC_API_URL}/users/{pid}")
 
-    api_return = api_return["data"]["names"]
+    api_return = api_return["names"]
     print(f"Fetched new user {api_return['international']}")
     USER_PICKLE[pid] = api_return
     with open(USER_PICKLE_PATH, "wb") as pickle_file:
@@ -90,6 +87,73 @@ def get_user_name(pid):
 
 def map_short_name(official_name):
     """Make a mapping between level names on SRC and the shortened forms I want to use on my charts"""
-    if not official_name in SHORT_NAME_MAP:
+    if official_name not in SHORT_NAME_MAP:
         raise Exception(f"Level Name Not Mapped: {official_name}")
     return SHORT_NAME_MAP[official_name]
+
+# Pagination gives you at most 200 results, so you gotta call the API again using
+# the return value's pagination.links.uri for rel = 'next'
+# It ends when the pagination list doesn't have a 'next' value anymore
+def query_api(endpoint, arg_dict=None):
+    """Query the SRC API and return all results for endpoint with the given args. Handles unrolling pagination."""
+
+    if SRC_API_URL not in endpoint:
+        raise Exception("Not a valid speedrun.com URL!")
+
+    s = requests.Session()
+    retries = Retry(total=10,
+                    backoff_factor=.25,
+                    status_forcelist=[420])
+    s.mount("http://", HTTPAdapter(max_retries=retries))
+
+    # SRC results can either be paginated or unpaginated. Handle the first call, and then if
+    # it contains a `pagination` key, go into the paginator workflow
+    response = s.get(endpoint, params=arg_dict)
+    time.sleep(SLEEP_INTERVAL)
+    if response.status_code != 200:
+        print(response.text)
+        response.raise_for_status()
+
+    if "pagination" not in response.json():
+        if isinstance(response.json()['data'], list):
+            print(f"Got {len(response.json()['data'])} results")
+        return response.json()['data']
+
+    # Unroll pagination to return a single list of all results
+    results = response.json()
+    next_url = get_next_uri(results)
+    results_list = []
+    while response is not None:
+        if response.status_code != 200:
+            # So far the only error I've seen for valid requests is rate limits, so
+            # sleep and retry when it happens
+            print(response.text)
+            time.sleep(10)
+            results = s.get(next_url) if next_url else None
+            continue
+
+        results = response.json()
+        results_list += results["data"]
+
+        # Update result counts without printing a billion lines, lol
+        sys.stdout.write('\r')
+        sys.stdout.write(f"Got {len(results_list)} results")
+        sys.stdout.flush()
+
+        next_url = get_next_uri(results["pagination"])
+        response = requests.get(next_url) if next_url else None
+
+        time.sleep(SLEEP_INTERVAL)
+
+    print("")
+
+    return results_list
+
+
+def get_next_uri(pagination_dict):
+    """Parse out the uri of the next paginated response"""
+    for link in pagination_dict.get('links', []):
+        if link['rel'] == 'next':
+            return link['uri']
+
+    return None
