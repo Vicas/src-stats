@@ -55,15 +55,15 @@ def get_verifier_stats():
 
     z = runs.groupby('examiner').count()
     z['verifier_name'] = z.apply(lambda x: get_user_name(x.name), axis=1)
-    z = z[['id','verifier_name']].sort_values('id',ascending=False)
+    z = z[['id','verifier_name']].sort_values('id', ascending=False)
     return z
 
 
-def get_wr_runs(filter_users=True):
+def get_wr_runs(board_info: BoardInfo):
     """Filter the run set to runs that were WR at the time they happened"""
-    runs = join_all_data(filter_users=filter_users)
+    runs = board_info.runs()
     runs.sort_values(["date", "submitted"], inplace=True)
-    runs["wr_t"] = runs.groupby(["Categories", "e_short_name"])['e_primary_t'].cummin()
+    runs["wr_t"] = runs.groupby(["level", "category" + board_info.subcategory_list()])['e_primary_t'].cummin()
     runs["was_wr"] = runs.apply(lambda x: x.e_primary_t == x.wr_t, axis=1)
 
     return runs[runs["was_wr"]].copy()

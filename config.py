@@ -22,3 +22,12 @@ class BoardInfo:
     levels: List[Dict]
     variables: List[Dict]
     runs: Optional[List[Dict]]
+
+    def subcategory_list(self):
+        return list(self.variables[self.variables['is-subcategory']].index)
+
+    def __post_init__(self):
+        """Unpack the subcategory variables. If no variable exists, return None."""
+        for id in self.subcategory_list():
+            var_row = self.variables.loc[id]
+            self.runs[id] = self.runs['values'].apply(lambda x: var_row['values']['values'][x.get(id)]['label'] if x.get(id) else None)

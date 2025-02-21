@@ -1,0 +1,16 @@
+Alright, with Twitch forcing our hands it's time to look into preserving these runs in a scriptable way
+
+This doc will just be a list of what needs to happen to go from my existing scraper to a full DL script, ideally with proper tagging and all that fun stuff but first and foremost just making sure everything on twitch is preserved before the reckoning
+
+MVP: script that takes the big BoardInfo object I'm scraping and uses yt-dlp to pull down all WRs (and maybe optionally all videos on a board). Ideally also have a way to link downloaded files back to the BoardInfo object
+- Support subcategories so that we can pull out WRs
+  - Variables have an is_subcategory field
+- Fix the get_wr_runs function to respect subcategories
+- Go through WR runs and extract video links
+- use yt-dlp to try to download all videos, generating a report of what succeeded and what failed
+  - This one will probably be quite spiny and edge-casey
+
+Stretch goals:
+- Better, easier tagging
+- Archive creation
+- A runnable script that re-scans the board and only downloads new runs/WRs

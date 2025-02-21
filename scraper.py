@@ -28,7 +28,7 @@ def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
         game_links['variables'],
         lambda x: x,
         save_path=save_path / f"{file_prefix}_variables.parquet" if save_path else None
-    )
+    ).set_index('id')
 
     print("Fetching Categories...")
     categories = load_data(
