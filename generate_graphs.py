@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import BoardInfo
+from speedrun_board import SpeedrunBoard
 from utils import DATA_PATH, CHART_PATH, get_user_name
 
 
@@ -12,7 +12,7 @@ plt.tight_layout()
 
 # Common Data Transformations
 
-def join_all_data(board_info: BoardInfo, filter_users=True):
+def join_all_data(board_info: SpeedrunBoard, filter_users=True):
     """Perform a mega-join of all of our data so we can label levels, categories, users, whatever
     
     filter_users removes Stupid Rat and Rejected runs from the dataset
@@ -58,16 +58,6 @@ def get_verifier_stats():
     z = z[['id','verifier_name']].sort_values('id', ascending=False)
     return z
 
-
-def get_wr_runs(board_info: BoardInfo):
-    """Filter the run set to runs that were WR at the time they happened"""
-    runs = board_info.runs()
-    runs.sort_values(["date", "submitted"], inplace=True)
-    runs["wr_t"] = runs.groupby(["level", "category" + board_info.subcategory_list()])['e_primary_t'].cummin()
-    runs["was_wr"] = runs.apply(lambda x: x.e_primary_t == x.wr_t, axis=1)
-
-    return runs[runs["was_wr"]].copy()
-    
 
 def get_longest_standing_wrs(longest_active=False, fullgame_only=False, filter_users=True, result_count=20):
     """Get the longest-standing WRs"""
@@ -235,7 +225,7 @@ def plot_minute_histogram_with_new_runs(
 
 
 def plot_runs_per_week(
-        board_info: BoardInfo,
+        board_info: SpeedrunBoard,
         start_date:datetime,
         end_date:datetime=None,
         il_split=False,

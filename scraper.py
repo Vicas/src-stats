@@ -4,8 +4,7 @@ from datetime import datetime
 import pandas as pd
 import requests
 
-from config import DATA_PATH, SRC_API_URL, PT_ID, BoardInfo
-from enrich_data import enrich_categories, enrich_levels, enrich_runs
+from speedrun_board import DATA_PATH, SRC_API_URL, PT_ID, SpeedrunBoard
 from utils import query_api
 
 
@@ -26,21 +25,18 @@ def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
     print("Fetching Variables...")
     variables = load_data(
         game_links['variables'],
-        lambda x: x,
         save_path=save_path / f"{file_prefix}_variables.parquet" if save_path else None
     ).set_index('id')
 
     print("Fetching Categories...")
     categories = load_data(
         game_links['categories'],
-        enrich_categories,
         save_path=save_path / f"{file_prefix}_categories.parquet" if save_path else None
     )
 
     print("Fetching Levels...")
     levels = load_data(
         game_links['levels'],
-        enrich_levels,
         save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None
     )
 
@@ -50,72 +46,16 @@ def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
         print("Fetching Runs...")
         runs = load_data(
             game_links['runs'],
-            enrich_runs,
             api_args={'max': 200},
             save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
         )
 
-    return BoardInfo(
+    return SpeedrunBoard(
         game=game,
         categories=categories,
         levels=levels,
         variables=variables,
         runs=runs)
-
-
-def get_full_game_local(board_id, save_path, file_prefix=None):
-    """Lookup the main game info on SRC, but load runs, categories, levels, and variables from save_path"""
-    print(f"Fetching data for {board_id}")
-    game = query_api(f"{SRC_API_URL}/games/{board_id}")
-
-    return BoardInfo(
-        game=game,
-        categories=pd.read_parquet(save_path / f"{file_prefix}_categories.parquet"),
-        levels=pd.read_parquet(save_path / f"{file_prefix}_levels.parquet"),
-        variables=pd.read_parquet(save_path / f"{file_prefix}_variables.parquet"),
-        runs=pd.read_parquet(save_path / f"{file_prefix}_runs.parquet")
-    )
-
-
-def get_levels(board_id, board_prefix=None, save_path=None):
-    """Get a list of all levels for the boards in board_ids (see boards in config.py)"""
-    level_api = f"{SRC_API_URL}/games/{board_id}/levels"
-    file_prefix = board_prefix or board_id
-
-    return load_data(
-            level_api,
-            enrich_levels,
-            save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None)
-
-
-def get_categories(board_id, board_prefix=None, save_path=None):
-    """Get a list of all categories for the boards in board_ids (see boards in config.py)"""
-    'https://www.speedrun.com/api/v1/games/o6gkxg91/categories',
-    category_api = f"{SRC_API_URL}/games/{board_id}/categories"
-    file_prefix = board_prefix or board_id
-
-    return load_data(
-        category_api,
-        enrich_categories,
-        save_path=save_path / f"{file_prefix}_categories.parquet" if save_path else None
-    )
-
-
-def get_runs(board_id, board_prefix=None, save_path=None):
-    """Query the speedrun.com API to get every run for the game in board_id.
-    
-    Because the runs endpoint requires the proper ID, lookup the game in case the user provided an abbreviation."""
-
-    game = query_api(f"{SRC_API_URL}/games/{board_id}")
-    game_id = game['id']
-    runs_api = f"{SRC_API_URL}/runs?game={game_id}"
-    file_prefix = board_prefix or board_id
-    return load_data(
-        runs_api,
-        enrich_runs,
-        api_args={"max": 200},
-        save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
-    )
 
 
 def get_leaderboards():
@@ -139,7 +79,7 @@ def get_leaderboards():
                 run_flat[k] = v
             run_list_flattened.append(run_flat)
 
-        leaderboard_df = enrich_runs(run_list_flattened)
+        leaderboard_df = run_list_flattened
 
         leaderboard_df.to_parquet(path=DATA_PATH / f"PT_leaderboard_{category}_{current_date}.parquet")
 
@@ -148,17 +88,13 @@ def get_leaderboards():
 
 def load_data(
         api_endpoint,
-        enrich_data_fun,
         api_args=None,
         save_path=None):
-    """Fetch data with the SRC API, then enrich it with the enrich_data function and optionally save it."""
+    """Fetch data with the SRC API, convert it to a DataFrame, and optionally save it."""
     
     api_return = query_api(api_endpoint, api_args)
 
     data_df = pd.DataFrame(api_return)
-
-    if len(api_return):
-        data_df = enrich_data_fun(data_df)
 
     # Cache the results on local disk
     if save_path:

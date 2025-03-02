@@ -7,7 +7,7 @@ import sys
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
-from config import DATA_PATH, CHART_PATH, SRC_API_URL
+from speedrun_board import DATA_PATH, CHART_PATH, SRC_API_URL
 
 # Store user id-to-name mappings in dict, but only load it in when get_user_name is called
 USER_PICKLE_PATH = DATA_PATH / "SRC_users.pkl"
@@ -157,3 +157,13 @@ def get_next_uri(pagination_dict):
             return link['uri']
 
     return None
+
+
+def mark_level_era(level_name):
+    """For now, if this is tricky treat or Secrets of the world, it's 2023 Halloween,
+    otherwise it's Main Game. I guess we should mark SAGE too"""
+    if level_name in ("Tricky Treat", "Secrets of the World"):
+        return "2023 Halloween"
+    if "(SAGE)" in level_name:
+        return "SAGE Demo"
+    return "Main Game"
