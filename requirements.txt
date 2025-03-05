@@ -6,3 +6,4 @@ matplotlib
 jupyterlab
 jupyter
 yt-dlp
+click

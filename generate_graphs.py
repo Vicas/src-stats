@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from speedrun_board import SpeedrunBoard
-from utils import DATA_PATH, CHART_PATH, get_user_name
+from utils import CHART_PATH, DATA_PATH, get_user_name
 
 
 plt.tight_layout()

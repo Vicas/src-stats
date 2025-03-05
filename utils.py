@@ -1,5 +1,6 @@
 """Random useful util functions"""
 
+from pathlib import Path
 import pickle
 import time
 import sys
@@ -7,7 +8,7 @@ import sys
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
-from speedrun_board import DATA_PATH, CHART_PATH, SRC_API_URL
+DATA_PATH = Path(__file__).parent / "data"
 
 # Store user id-to-name mappings in dict, but only load it in when get_user_name is called
 USER_PICKLE_PATH = DATA_PATH / "SRC_users.pkl"
@@ -52,12 +53,16 @@ SHORT_NAME_MAP = {
     "Pizzascare": "Pizzascare (SAGE)",
     "Strongcold": "Strongcold (SAGE)",
 }
+CHART_PATH = Path(__file__).parent / "charts"
 
 
 def init_folders():
     """Initialize folders for data/pngs in the project"""
     DATA_PATH.mkdir(parents=True, exist_ok=True)
     CHART_PATH.mkdir(parents=True, exist_ok=True)
+
+
+SRC_API_URL = "https://www.speedrun.com/api/v1"
 
 
 def get_user_name(pid):

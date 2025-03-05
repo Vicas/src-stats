@@ -1,7 +1,6 @@
 """Class for storing and enriching SRC board data"""
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional, List
 
 import pandas as pd
@@ -9,11 +8,6 @@ import pandas as pd
 from utils import mark_level_era
 from utils import map_short_name
 
-
-DATA_PATH = Path(__file__).parent / "data"
-CHART_PATH = Path(__file__).parent / "charts"
-
-SRC_API_URL = "https://www.speedrun.com/api/v1"
 
 # Pizza Tower & CE IDs on speedrun.com
 PT_ID = "o6gnpox1"
@@ -89,7 +83,7 @@ class SpeedrunBoard:
 
         # Sort runs by category in order to mark world records
         run_df.sort_values(["date", "submitted"], inplace=True)
-        run_df["wr_t"] = run_df.groupby(["level", "category" + self.subcategory_list()])['e_primary_t'].cummin()
+        run_df["wr_t"] = run_df.groupby(["level", "category"] + self.subcategory_list())['e_primary_t'].cummin()
         run_df["was_wr"] = run_df.apply(lambda x: x.e_primary_t == x.wr_t, axis=1)
 
         self.runs = run_df

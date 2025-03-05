@@ -4,8 +4,8 @@ from datetime import datetime
 import pandas as pd
 import requests
 
-from speedrun_board import DATA_PATH, SRC_API_URL, PT_ID, SpeedrunBoard
-from utils import query_api
+from speedrun_board import PT_ID, SpeedrunBoard
+from utils import DATA_PATH, SRC_API_URL, query_api
 
 
 """Loading different datasets"""
@@ -32,13 +32,13 @@ def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
     categories = load_data(
         game_links['categories'],
         save_path=save_path / f"{file_prefix}_categories.parquet" if save_path else None
-    )
+    ).set_index('id')
 
     print("Fetching Levels...")
     levels = load_data(
         game_links['levels'],
         save_path=save_path / f"{file_prefix}_levels.parquet" if save_path else None
-    )
+    ).set_index('id')
 
     runs = None
     if fetch_runs:
@@ -48,7 +48,7 @@ def get_full_game(board_id, file_prefix=None, fetch_runs=True, save_path=None):
             game_links['runs'],
             api_args={'max': 200},
             save_path=save_path / f"{file_prefix}_runs.parquet" if save_path else None
-        )
+        ).set_index('id')
 
     return SpeedrunBoard(
         game=game,
